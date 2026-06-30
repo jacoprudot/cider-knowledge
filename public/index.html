@@ -4,131 +4,179 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cider Institute — AI Knowledge Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Oswald:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --cream: #F5F1E8;
-      --charcoal: #2B2B2B;
-      --terracotta: #B85C28;
+      --cream: #F8F5F0;
+      --charcoal: #1a1a1a;
+      --warm-red: #8B2E2E;
+      --gold: #C4A35A;
       --grey: #D4CFC4;
-      --olive: #7A7E5F;
+      --glass-bg: rgba(255,255,255,0.85);
+      --glass-border: rgba(255,255,255,0.3);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: Georgia, 'Times New Roman', serif;
-      background: var(--cream);
+      font-family: 'Lato', sans-serif;
+      font-weight: 400;
+      background: linear-gradient(135deg, #f5f0e8 0%, #ede4d3 40%, #e8dfc8 100%);
       color: var(--charcoal);
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
     }
+
+    /* Header — dark bar with white logo */
     header {
       width: 100%;
-      padding: 1.25rem 2rem;
+      padding: 1rem 2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid var(--grey);
-      background: rgba(255,255,255,0.6);
-      backdrop-filter: blur(8px);
+      background: var(--charcoal);
       position: sticky;
       top: 0;
       z-index: 10;
     }
-    header .logo { font-size: 1.1rem; font-weight: 600; color: var(--charcoal); text-decoration: none; }
+    header .logo img { height: 28px; width: auto; display: block; }
     header nav a {
-      color: var(--charcoal); text-decoration: none; margin-left: 1.5rem;
-      font-size: 0.9rem; transition: color 0.2s;
+      color: #ccc; text-decoration: none; margin-left: 2rem;
+      font-family: 'Oswald', sans-serif; font-weight: 400;
+      font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase;
+      transition: color 0.2s;
     }
-    header nav a:hover { color: var(--terracotta); }
-    .container { width: 100%; max-width: 720px; padding: 3rem 1.5rem; }
-    .hero { text-align: center; margin-bottom: 2.5rem; }
-    .hero h1 { font-size: 2.2rem; margin-bottom: 0.75rem; color: var(--charcoal); }
-    .hero p { font-size: 1.1rem; color: #666; max-width: 500px; margin: 0 auto; line-height: 1.6; }
+    header nav a:hover { color: #fff; }
+
+    /* Hero */
+    .container { width: 100%; max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem; }
+    .hero { text-align: center; margin-bottom: 2rem; }
+    .hero h1 {
+      font-family: 'Oswald', sans-serif; font-weight: 400;
+      font-size: 2.2rem; color: var(--charcoal); margin-bottom: 0.5rem;
+    }
+    .hero p { font-size: 1.05rem; color: #666; max-width: 500px; margin: 0 auto; line-height: 1.6; }
 
     /* Search */
-    .search-area { position: relative; margin-bottom: 1.5rem; }
+    .search-area { margin-bottom: 1.5rem; }
     .search-row { display: flex; gap: 0.5rem; align-items: center; }
     #question {
-      flex: 1; padding: 1rem 1.25rem; font-size: 1.05rem;
-      border: 1.5px solid var(--grey); border-radius: 8px;
-      background: #fff; font-family: inherit; outline: none;
-      transition: border-color 0.2s;
+      flex: 1; padding: 0.9rem 1.2rem; font-size: 1rem;
+      border: 1px solid var(--grey); border-radius: 6px;
+      background: var(--glass-bg); backdrop-filter: blur(12px);
+      font-family: 'Lato', sans-serif; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    #question:focus { border-color: var(--olive); }
+    #question:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,163,90,0.15); }
     #askBtn {
-      padding: 1rem 1.5rem; font-size: 1rem; font-weight: 600;
+      padding: 0.9rem 1.5rem; font-size: 0.9rem; font-weight: 700;
       background: var(--charcoal); color: #fff; border: none;
-      border-radius: 8px; cursor: pointer; transition: background 0.2s;
-      font-family: inherit;
+      border-radius: 6px; cursor: pointer; transition: background 0.2s;
+      font-family: 'Lato', sans-serif; text-transform: uppercase; letter-spacing: 0.05em;
     }
-    #askBtn:hover { background: #3d3d3d; }
+    #askBtn:hover { background: #333; }
     #askBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* Voice */
-    .voice-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .voice-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
     #micBtn {
-      width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--grey);
-      background: #fff; cursor: pointer; display: flex; align-items: center;
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--grey);
+      background: var(--glass-bg); cursor: pointer; display: flex; align-items: center;
       justify-content: center; transition: all 0.2s; flex-shrink: 0;
     }
     #micBtn:hover { border-color: var(--charcoal); }
-    #micBtn.recording {
-      border-color: var(--terracotta); background: rgba(184,92,40,0.08);
-      animation: pulse 1.5s infinite;
-    }
-    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(184,92,40,0.3); } 50% { box-shadow: 0 0 0 8px rgba(184,92,40,0); } }
-    #micStatus { font-size: 0.85rem; color: #999; }
+    #micBtn.recording { border-color: var(--warm-red); background: rgba(139,46,46,0.08); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(139,46,46,0.3); } 50% { box-shadow: 0 0 0 8px rgba(139,46,46,0); } }
+    #micStatus { font-size: 0.8rem; color: #999; font-family: 'Lato', sans-serif; }
     #speakBtn {
-      background: none; border: 1px solid var(--grey); padding: 0.5rem 1rem;
-      border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+      background: none; border: 1px solid var(--grey); padding: 0.4rem 0.9rem;
+      border-radius: 6px; cursor: pointer; font-family: 'Lato', sans-serif; font-size: 0.8rem;
       color: var(--charcoal); transition: all 0.2s;
     }
-    #speakBtn:hover { border-color: var(--charcoal); }
+    #speakBtn:hover { border-color: var(--charcoal); background: var(--glass-bg); }
     #speakBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Hint */
-    .hint { font-size: 0.85rem; color: #aaa; margin-bottom: 2rem; }
+    /* Conversation status */
+    .conv-status {
+      text-align: center; margin-bottom: 0.75rem;
+      font-size: 0.8rem; color: #999; font-family: 'Lato', sans-serif;
+    }
+    #newConvBtn { color: var(--warm-red); cursor: pointer; }
+    #newConvBtn:hover { text-decoration: underline; }
 
-    /* Answer */
+    .hint { font-size: 0.85rem; color: #aaa; margin-bottom: 2rem; text-align: center; }
+
+    /* Answer card — glass effect */
     .answer-card {
-      background: #fff; border: 1px solid var(--grey); border-radius: 10px;
-      padding: 2rem; margin-bottom: 2rem; display: none;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      display: none;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.04);
     }
     .answer-card.visible { display: block; }
-    .answer-card h2 { font-size: 1.2rem; margin-bottom: 1rem; color: var(--charcoal); }
-    .answer-text { line-height: 1.8; font-size: 1.05rem; }
-    .answer-text p { margin-bottom: 1rem; }
+    .answer-text {
+      line-height: 1.7;
+      font-size: 1rem;
+      font-family: 'Lato', sans-serif;
+    }
+    .answer-text h1 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.4rem; margin: 1.5rem 0 0.75rem; color: var(--charcoal); }
+    .answer-text h2 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.15rem; margin: 1.25rem 0 0.5rem; color: var(--charcoal); }
+    .answer-text h3 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1rem; margin: 1rem 0 0.4rem; }
+    .answer-text p { margin-bottom: 0.85rem; }
     .answer-text ul, .answer-text ol { margin: 0.5rem 0 1rem 1.5rem; line-height: 1.7; }
+    .answer-text strong { font-weight: 700; }
+    .answer-text em { font-style: italic; }
 
     /* Sources */
     .sources { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--grey); }
-    .sources h3 { font-size: 0.9rem; color: #999; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .sources h3 {
+      font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 0.8rem;
+      color: #999; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.06em;
+    }
     .source-chip {
-      display: inline-block; padding: 0.3rem 0.75rem; margin: 0.2rem 0.3rem 0.2rem 0;
-      background: rgba(122,126,95,0.1); border: 1px solid rgba(122,126,95,0.2);
-      border-radius: 20px; font-size: 0.8rem; color: var(--olive);
+      display: inline-block; padding: 0.25rem 0.7rem; margin: 0.15rem 0.25rem 0.15rem 0;
+      background: rgba(196,163,90,0.12); border: 1px solid rgba(196,163,90,0.2);
+      border-radius: 20px; font-size: 0.75rem; color: #8B7355;
+      font-family: 'Lato', sans-serif;
     }
 
     /* Loading */
     .loading { text-align: center; padding: 2rem; display: none; }
     .loading.visible { display: block; }
-    .spinner { width: 24px; height: 24px; border: 2px solid var(--grey); border-top-color: var(--olive); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 0.5rem; }
+    .spinner { width: 24px; height: 24px; border: 2px solid var(--grey); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 0.5rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading p { color: #999; font-size: 0.9rem; }
+    .loading p { color: #999; font-size: 0.85rem; font-family: 'Lato', sans-serif; }
 
-    /* Error */
-    .error-card { background: #fff5f5; border: 1px solid #fcc; padding: 1rem 1.5rem; border-radius: 8px; color: #c44; margin-bottom: 1.5rem; display: none; }
+    .error-card {
+      background: rgba(139,46,46,0.06); border: 1px solid rgba(139,46,46,0.2);
+      padding: 0.85rem 1.25rem; border-radius: 8px; color: var(--warm-red);
+      margin-bottom: 1.5rem; display: none; font-size: 0.9rem;
+    }
     .error-card.visible { display: block; }
 
     /* Footer */
-    footer { margin-top: auto; padding: 2rem; text-align: center; font-size: 0.85rem; color: #aaa; border-top: 1px solid var(--grey); width: 100%; }
+    footer {
+      margin-top: auto; padding: 2rem; text-align: center;
+      font-size: 0.8rem; color: #aaa; width: 100%;
+      font-family: 'Lato', sans-serif;
+    }
     footer a { color: #999; }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 1.6rem; }
+      header { padding: 0.75rem 1rem; }
+      header nav a { margin-left: 1rem; font-size: 0.7rem; }
+    }
   </style>
 </head>
 <body>
   <header>
-    <a href="/" class="logo"><img src="/logo.png" alt="Cider Institute of North America" style="height:32px;width:auto;"></a>
+    <a href="/" class="logo"><img src="/logo.png" alt="Cider Institute of North America"></a>
     <nav>
       <a href="/vault/">Knowledge Wiki</a>
     </nav>
@@ -161,7 +209,7 @@
     <p class="hint" id="hint">Try: How much SO₂ should I add? · What causes H₂S in fermentation? · How do I test for volatile acidity?</p>
     <div class="conv-status" id="convStatus" style="display:none;">
       <span>💬 Continuing conversation</span>
-      <button id="newConvBtn" style="background:none;border:none;color:var(--terracotta);cursor:pointer;font-family:inherit;font-size:0.8rem;margin-left:0.5rem;">(New topic)</button>
+      <button id="newConvBtn">(New topic)</button>
     </div>
 
     <div class="error-card" id="errorCard"></div>
@@ -192,7 +240,7 @@
     const errorCard = document.getElementById("errorCard");
 
     let lastAnswer = "";
-    let conversationHistory = [];  // [{question, answer}]
+    let conversationHistory = [];
     const convStatus = document.getElementById("convStatus");
     const newConvBtn = document.getElementById("newConvBtn");
     const hintText = document.getElementById("hint");
@@ -232,18 +280,17 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             question,
-            history: conversationHistory.slice(-4),  // Last 4 exchanges
+            history: conversationHistory.slice(-4),
           }),
         });
 
         if (!res.ok) throw new Error("Server error");
 
         const data = await res.json();
-        answerText.innerHTML = marked(data.answer);
+        answerText.innerHTML = renderMarkdown(data.answer);
         lastAnswer = data.answer;
         speakBtn.disabled = false;
 
-        // Store in conversation history
         conversationHistory.push({ question, answer: data.answer });
         if (conversationHistory.length > 10) conversationHistory.shift();
         updateConvStatus();
@@ -270,8 +317,8 @@
       if (e.key === "Enter") ask(questionInput.value);
     });
 
-    // ── Simple markdown render ──
-    function marked(text) {
+    // ── Simple markdown renderer ──
+    function renderMarkdown(text) {
       return text
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
         .replace(/^### (.+)$/gm, "<h3>$1</h3>")
@@ -280,7 +327,6 @@
         .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.+?)\*/g, "<em>$1</em>")
         .replace(/^\- (.+)$/gm, "<li>$1</li>")
-        .replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>")
         .replace(/\n\n/g, "</p><p>")
         .replace(/^(.+)$/gm, (m) => m.startsWith("<") ? m : "<p>" + m + "</p>");
     }
@@ -297,7 +343,7 @@
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        micStatus.textContent = "Speech recognition not supported in this browser";
+        micStatus.textContent = "Speech recognition not supported";
         return;
       }
 
@@ -324,13 +370,9 @@
       recognition.onerror = (event) => {
         recognizing = false;
         micBtn.classList.remove("recording");
-        if (event.error === "not-allowed") {
-          micStatus.textContent = "Microphone access denied";
-        } else if (event.error === "no-speech") {
-          micStatus.textContent = "No speech detected";
-        } else {
-          micStatus.textContent = "";
-        }
+        if (event.error === "not-allowed") micStatus.textContent = "Microphone access denied";
+        else if (event.error === "no-speech") micStatus.textContent = "No speech detected";
+        else micStatus.textContent = "";
       };
 
       recognition.onend = () => {
@@ -349,7 +391,6 @@
         speakBtn.textContent = "🔊 Listen";
         return;
       }
-
       const utterance = new SpeechSynthesisUtterance(lastAnswer.replace(/\*|#|\[.*?\]\(.*?\)/g, ""));
       utterance.lang = "en-US";
       utterance.rate = 0.95;

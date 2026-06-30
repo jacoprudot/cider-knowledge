@@ -407,49 +407,56 @@ function renderLoginPage(error, returnTo) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cider Institute — Member Access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Oswald:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    :root { --cream: #F5F1E8; --charcoal: #2B2B2B; --terracotta: #B85C28; --grey: #D4CFC4; --olive: #7A7E5F; }
+    :root { --charcoal: #1a1a1a; --gold: #C4A35A; --grey: #D4CFC4; --glass-bg: rgba(255,255,255,0.9); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: Georgia, 'Times New Roman', serif; background: var(--cream);
+      font-family: 'Lato', sans-serif; font-weight: 400;
+      background: linear-gradient(135deg, #f5f0e8 0%, #ede4d3 40%, #e8dfc8 100%);
       color: var(--charcoal); display: flex; align-items: center; justify-content: center;
       min-height: 100vh;
     }
     .login-card {
-      background: #fff; border: 1px solid var(--grey); border-radius: 12px;
+      background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.3); border-radius: 12px;
       padding: 2.5rem; max-width: 420px; width: 90%;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+      box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+      text-align: center;
     }
-    .login-card h1 { font-size: 1.4rem; margin-bottom: 0.25rem; text-align: center; }
-    .login-card .subtitle { color: #666; margin-bottom: 2rem; font-size: 0.9rem; line-height: 1.5; text-align: center; }
-    .login-card label { display: block; font-size: 0.85rem; margin-bottom: 0.35rem; color: var(--charcoal); }
+    .login-card img { max-width: 200px; height: auto; margin-bottom: 0.75rem; }
+    .login-card .subtitle { color: #666; margin-bottom: 2rem; font-size: 0.9rem; line-height: 1.5; }
+    .login-card label { display: block; font-size: 0.8rem; margin-bottom: 0.35rem; color: var(--charcoal); text-align: left; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
     .login-card input {
       width: 100%; padding: 0.75rem 0.85rem; font-size: 1rem;
-      border: 1.5px solid var(--grey); border-radius: 6px;
-      font-family: inherit; outline: none; margin-bottom: 1rem;
-      transition: border-color 0.2s;
+      border: 1px solid var(--grey); border-radius: 6px;
+      font-family: 'Lato', sans-serif; outline: none; margin-bottom: 1rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .login-card input:focus { border-color: var(--olive); }
+    .login-card input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,163,90,0.15); }
     .login-card button {
-      width: 100%; padding: 0.8rem; font-size: 0.95rem; font-weight: 600;
+      width: 100%; padding: 0.8rem; font-size: 0.9rem; font-weight: 700;
       background: var(--charcoal); color: #fff; border: none;
-      border-radius: 6px; cursor: pointer; font-family: inherit;
+      border-radius: 6px; cursor: pointer; font-family: 'Lato', sans-serif;
+      text-transform: uppercase; letter-spacing: 0.05em;
       transition: background 0.2s;
     }
-    .login-card button:hover { background: #3d3d3d; }
+    .login-card button:hover { background: #333; }
     .login-card button.secondary {
-      background: none; color: var(--charcoal); border: 1.5px solid var(--grey);
-      font-weight: 400; margin-top: 0.75rem;
+      background: none; color: var(--charcoal); border: 1px solid var(--grey);
+      font-weight: 400; margin-top: 0.75rem; text-transform: none; letter-spacing: 0;
     }
-    .login-card button.secondary:hover { border-color: var(--charcoal); }
+    .login-card button.secondary:hover { border-color: var(--charcoal); background: rgba(0,0,0,0.02); }
     .login-card button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .error { color: var(--terracotta); font-size: 0.85rem; margin-bottom: 1rem; text-align: center; }
+    .error { color: #8B2E2E; font-size: 0.85rem; margin-bottom: 1rem; }
     .divider { display: flex; align-items: center; margin: 1.25rem 0; color: #aaa; font-size: 0.8rem; }
     .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--grey); }
     .divider span { padding: 0 0.75rem; }
     .magic-sent { text-align: center; padding: 1.5rem 0; display: none; }
     .magic-sent.visible { display: block; }
-    .magic-sent .check { font-size: 1.5rem; color: var(--olive); margin-bottom: 0.75rem; }
+    .magic-sent .check { font-size: 1.5rem; color: var(--gold); margin-bottom: 0.75rem; }
     .magic-sent p { color: #666; font-size: 0.85rem; margin-bottom: 0.5rem; line-height: 1.5; }
     .magic-sent .magic-url {
       background: rgba(0,0,0,0.03); padding: 0.6rem 0.75rem; border-radius: 6px;
@@ -457,18 +464,17 @@ function renderLoginPage(error, returnTo) {
       color: var(--charcoal); margin: 0.75rem 0; text-align: left;
     }
     .magic-sent .hint { font-size: 0.75rem; color: #aaa; margin-top: 0.5rem; }
-    .footer { margin-top: 1.5rem; text-align: center; font-size: 0.75rem; color: #aaa; }
+    .footer { margin-top: 1.5rem; font-size: 0.75rem; color: #aaa; }
     .footer a { color: #999; }
   </style>
 </head>
 <body>
   <div class="login-card">
-    <img src="/logo.png" alt="Cider Institute of North America" style="max-width:220px;height:auto;margin-bottom:0.5rem;">
+    <img src="/logo.png" alt="Cider Institute of North America">
     <p class="subtitle">Knowledge Library — Member Access</p>
 
     ${errHtml}
 
-    <!-- Access code form -->
     <form id="codeForm">
       <label for="code">Access code</label>
       <input type="password" name="code" id="code" placeholder="Enter access code" autofocus>
@@ -477,12 +483,10 @@ function renderLoginPage(error, returnTo) {
 
     <div class="divider"><span>or</span></div>
 
-    <!-- Magic link generator -->
     <form id="magicForm">
       <button type="submit" class="secondary">Send magic link →</button>
     </form>
 
-    <!-- Magic link result -->
     <div class="magic-sent" id="magicSent">
       <div class="check">✓</div>
       <p style="color: var(--charcoal); font-weight: 600;">Share this link with your team</p>
@@ -497,7 +501,6 @@ function renderLoginPage(error, returnTo) {
     </div>
   </div>
   <script>
-    // Access code login
     document.getElementById("codeForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const res = await fetch("/api/login", {
@@ -509,8 +512,6 @@ function renderLoginPage(error, returnTo) {
       if (data.ok) window.location.href = data.redirect;
       else window.location.href = "/login?error=1&return=" + encodeURIComponent("${returnTo}");
     });
-
-    // Magic link generator
     document.getElementById("magicForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const res = await fetch("/api/magic");
@@ -518,7 +519,6 @@ function renderLoginPage(error, returnTo) {
       document.getElementById("magicUrl").textContent = data.url;
       document.getElementById("magicSent").classList.add("visible");
     });
-
     window.copyMagicUrl = function() {
       const url = document.getElementById("magicUrl").textContent;
       navigator.clipboard.writeText(url).then(() => {
@@ -541,42 +541,54 @@ function renderWikiPage(currentPath, content) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cider Institute — Knowledge Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Oswald:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    :root { --cream: #F5F1E8; --charcoal: #2B2B2B; --terracotta: #B85C28; --grey: #D4CFC4; --olive: #7A7E5F; }
+    :root { --cream: #F8F5F0; --charcoal: #1a1a1a; --gold: #C4A35A; --grey: #D4CFC4; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Georgia, 'Times New Roman', serif; background: var(--cream); color: var(--charcoal); display: flex; min-height: 100vh; }
-    nav { width: 280px; background: var(--charcoal); color: var(--cream); padding: 1.5rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; }
-    nav h2 { font-size: 1rem; margin-bottom: 1.5rem; color: var(--grey); text-transform: uppercase; letter-spacing: 0.1em; }
-    nav a { color: var(--cream); text-decoration: none; display: block; padding: 0.35rem 0; font-size: 0.9rem; }
-    nav a:hover { color: var(--terracotta); }
-    nav .nav-section { margin-bottom: 1.5rem; }
-    nav .nav-section strong { color: var(--grey); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 0.35rem; }
-    .logout-link { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; }
+    body { font-family: 'Lato', sans-serif; font-weight: 400; background: var(--cream); color: var(--charcoal); display: flex; min-height: 100vh; }
+    nav {
+      width: 280px; background: var(--charcoal); color: #fff; padding: 1.75rem 1.5rem;
+      position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0;
+    }
+    nav img { max-width: 160px; height: auto; margin-bottom: 1.5rem; filter: brightness(10); display: block; }
+    nav a { color: #ccc; text-decoration: none; display: block; padding: 0.35rem 0; font-size: 0.85rem; transition: color 0.2s; }
+    nav a:hover { color: #fff; }
+    nav .nav-section { margin: 1.5rem 0; }
+    nav .nav-section strong {
+      color: #888; font-size: 0.7rem; text-transform: uppercase;
+      letter-spacing: 0.12em; display: block; margin-bottom: 0.5rem;
+      font-family: 'Oswald', sans-serif; font-weight: 400;
+    }
+    .logout-link { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.78rem; }
     main { flex: 1; padding: 2.5rem 3rem; max-width: 850px; }
-    main h1 { font-size: 2rem; margin-bottom: 1.5rem; }
-    main h2 { font-size: 1.4rem; margin: 2rem 0 0.75rem; border-bottom: 1px solid var(--grey); padding-bottom: 0.25rem; }
-    main h3 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
-    main p { line-height: 1.7; margin-bottom: 1rem; }
-    main ul, main ol { margin: 0.5rem 0 1rem 1.5rem; line-height: 1.7; }
-    main a { color: var(--terracotta); }
-    main blockquote { border-left: 3px solid var(--olive); padding: 0.5rem 1rem; margin: 1rem 0; background: rgba(122,126,95,0.08); font-style: italic; }
-    main table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
-    main th { background: var(--charcoal); color: var(--cream); padding: 0.6rem 0.75rem; text-align: left; }
+    main h1 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 2rem; margin-bottom: 1.5rem; color: var(--charcoal); }
+    main h2 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.3rem; margin: 2rem 0 0.75rem; border-bottom: 1px solid var(--grey); padding-bottom: 0.35rem; }
+    main h3 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
+    main p { line-height: 1.75; margin-bottom: 1rem; font-size: 0.95rem; }
+    main ul, main ol { margin: 0.5rem 0 1rem 1.5rem; line-height: 1.75; font-size: 0.95rem; }
+    main a { color: #8B2E2E; }
+    main blockquote {
+      border-left: 3px solid var(--gold); padding: 0.5rem 1rem; margin: 1rem 0;
+      background: rgba(196,163,90,0.08); font-style: italic; font-size: 0.9rem;
+    }
+    main table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+    main th { background: var(--charcoal); color: #fff; padding: 0.6rem 0.75rem; text-align: left; font-family: 'Oswald', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; }
     main td { border: 1px solid var(--grey); padding: 0.5rem 0.75rem; }
-    main tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
-    main code { background: rgba(0,0,0,0.06); padding: 0.15rem 0.35rem; border-radius: 3px; font-size: 0.9em; font-family: 'Courier New', monospace; }
-    main pre { background: var(--charcoal); color: var(--cream); padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
+    main tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
+    main code { background: rgba(0,0,0,0.05); padding: 0.15rem 0.35rem; border-radius: 3px; font-size: 0.88em; }
+    main pre { background: var(--charcoal); color: #fff; padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
     main pre code { background: none; padding: 0; color: inherit; }
-    .breadcrumb { font-size: 0.85rem; color: #999; margin-bottom: 1.5rem; }
-    .breadcrumb a { color: #999; text-decoration: none; }
-    .breadcrumb a:hover { color: var(--terracotta); }
+    .breadcrumb { font-size: 0.8rem; color: #aaa; margin-bottom: 1.5rem; font-family: 'Lato', sans-serif; }
+    .breadcrumb a { color: #aaa; text-decoration: none; }
+    .breadcrumb a:hover { color: var(--charcoal); }
     @media (max-width: 768px) { body { flex-direction: column; } nav { width: 100%; height: auto; position: static; } main { padding: 1.5rem; } }
   </style>
 </head>
 <body>
   <nav>
-    <img src="/logo.png" alt="Cider Institute" style="max-width:180px;height:auto;margin-bottom:1rem;filter:brightness(10);"><br>
-    <span style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--grey);">Knowledge Library</span>
+    <img src="/logo.png" alt="Cider Institute">
     <div class="nav-section">
       <strong>Topics</strong>
       <a href="/vault/fermentation/">Fermentation</a>
