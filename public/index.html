@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cider Institute — AI Knowledge Library</title>
+  <style>
+    :root {
+      --cream: #F5F1E8;
+      --charcoal: #2B2B2B;
+      --terracotta: #B85C28;
+      --grey: #D4CFC4;
+      --olive: #7A7E5F;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      background: var(--cream);
+      color: var(--charcoal);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      width: 100%;
+      padding: 1.25rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--grey);
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header .logo { font-size: 1.1rem; font-weight: 600; color: var(--charcoal); text-decoration: none; }
+    header nav a {
+      color: var(--charcoal); text-decoration: none; margin-left: 1.5rem;
+      font-size: 0.9rem; transition: color 0.2s;
+    }
+    header nav a:hover { color: var(--terracotta); }
+    .container { width: 100%; max-width: 720px; padding: 3rem 1.5rem; }
+    .hero { text-align: center; margin-bottom: 2.5rem; }
+    .hero h1 { font-size: 2.2rem; margin-bottom: 0.75rem; color: var(--charcoal); }
+    .hero p { font-size: 1.1rem; color: #666; max-width: 500px; margin: 0 auto; line-height: 1.6; }
+
+    /* Search */
+    .search-area { position: relative; margin-bottom: 1.5rem; }
+    .search-row { display: flex; gap: 0.5rem; align-items: center; }
+    #question {
+      flex: 1; padding: 1rem 1.25rem; font-size: 1.05rem;
+      border: 1.5px solid var(--grey); border-radius: 8px;
+      background: #fff; font-family: inherit; outline: none;
+      transition: border-color 0.2s;
+    }
+    #question:focus { border-color: var(--olive); }
+    #askBtn {
+      padding: 1rem 1.5rem; font-size: 1rem; font-weight: 600;
+      background: var(--charcoal); color: #fff; border: none;
+      border-radius: 8px; cursor: pointer; transition: background 0.2s;
+      font-family: inherit;
+    }
+    #askBtn:hover { background: #3d3d3d; }
+    #askBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Voice */
+    .voice-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    #micBtn {
+      width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--grey);
+      background: #fff; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; transition: all 0.2s; flex-shrink: 0;
+    }
+    #micBtn:hover { border-color: var(--charcoal); }
+    #micBtn.recording {
+      border-color: var(--terracotta); background: rgba(184,92,40,0.08);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(184,92,40,0.3); } 50% { box-shadow: 0 0 0 8px rgba(184,92,40,0); } }
+    #micStatus { font-size: 0.85rem; color: #999; }
+    #speakBtn {
+      background: none; border: 1px solid var(--grey); padding: 0.5rem 1rem;
+      border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+      color: var(--charcoal); transition: all 0.2s;
+    }
+    #speakBtn:hover { border-color: var(--charcoal); }
+    #speakBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Hint */
+    .hint { font-size: 0.85rem; color: #aaa; margin-bottom: 2rem; }
+
+    /* Answer */
+    .answer-card {
+      background: #fff; border: 1px solid var(--grey); border-radius: 10px;
+      padding: 2rem; margin-bottom: 2rem; display: none;
+    }
+    .answer-card.visible { display: block; }
+    .answer-card h2 { font-size: 1.2rem; margin-bottom: 1rem; color: var(--charcoal); }
+    .answer-text { line-height: 1.8; font-size: 1.05rem; }
+    .answer-text p { margin-bottom: 1rem; }
+    .answer-text ul, .answer-text ol { margin: 0.5rem 0 1rem 1.5rem; line-height: 1.7; }
+
+    /* Sources */
+    .sources { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--grey); }
+    .sources h3 { font-size: 0.9rem; color: #999; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .source-chip {
+      display: inline-block; padding: 0.3rem 0.75rem; margin: 0.2rem 0.3rem 0.2rem 0;
+      background: rgba(122,126,95,0.1); border: 1px solid rgba(122,126,95,0.2);
+      border-radius: 20px; font-size: 0.8rem; color: var(--olive);
+    }
+
+    /* Loading */
+    .loading { text-align: center; padding: 2rem; display: none; }
+    .loading.visible { display: block; }
+    .spinner { width: 24px; height: 24px; border: 2px solid var(--grey); border-top-color: var(--olive); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 0.5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { color: #999; font-size: 0.9rem; }
+
+    /* Error */
+    .error-card { background: #fff5f5; border: 1px solid #fcc; padding: 1rem 1.5rem; border-radius: 8px; color: #c44; margin-bottom: 1.5rem; display: none; }
+    .error-card.visible { display: block; }
+
+    /* Footer */
+    footer { margin-top: auto; padding: 2rem; text-align: center; font-size: 0.85rem; color: #aaa; border-top: 1px solid var(--grey); width: 100%; }
+    footer a { color: #999; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">🍎 Cider Institute</a>
+    <nav>
+      <a href="/vault/">Knowledge Wiki</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="hero">
+      <h1>Ask a Cider Making Question</h1>
+      <p>Get answers backed by the Cider Institute's official course materials — with sources you can trust.</p>
+    </div>
+
+    <div class="search-area">
+      <div class="voice-row">
+        <button id="micBtn" title="Ask with voice">
+          <svg id="micIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </button>
+        <span id="micStatus"></span>
+        <button id="speakBtn" disabled title="Read answer aloud">🔊 Listen</button>
+      </div>
+      <div class="search-row">
+        <input type="text" id="question" placeholder="e.g., What pH should I target before fermentation?" autofocus>
+        <button id="askBtn">Ask</button>
+      </div>
+    </div>
+
+    <p class="hint">Try: How much SO₂ should I add? · What causes H₂S in fermentation? · How do I test for volatile acidity?</p>
+
+    <div class="error-card" id="errorCard"></div>
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Searching the knowledge library...</p>
+    </div>
+    <div class="answer-card" id="answerCard">
+      <div class="answer-text" id="answerText"></div>
+      <div class="sources" id="sources"></div>
+    </div>
+  </div>
+
+  <footer>
+    Powered by the <a href="https://www.ciderinstitute.com/">Cider Institute of North America</a> course materials
+  </footer>
+
+  <script>
+    const questionInput = document.getElementById("question");
+    const askBtn = document.getElementById("askBtn");
+    const micBtn = document.getElementById("micBtn");
+    const micStatus = document.getElementById("micStatus");
+    const speakBtn = document.getElementById("speakBtn");
+    const answerCard = document.getElementById("answerCard");
+    const answerText = document.getElementById("answerText");
+    const sourcesDiv = document.getElementById("sources");
+    const loading = document.getElementById("loading");
+    const errorCard = document.getElementById("errorCard");
+
+    let lastAnswer = "";
+    let mediaRecorder = null;
+    let chunks = [];
+    let recording = false;
+
+    // ── Text Q&A ──
+    async function ask(question) {
+      if (!question.trim()) return;
+
+      answerCard.classList.remove("visible");
+      errorCard.classList.remove("visible");
+      loading.classList.add("visible");
+      askBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+
+        if (!res.ok) throw new Error("Server error");
+
+        const data = await res.json();
+        answerText.innerHTML = marked(data.answer);
+        lastAnswer = data.answer;
+        speakBtn.disabled = false;
+
+        if (data.sources?.length) {
+          sourcesDiv.innerHTML = "<h3>Sources</h3>" +
+            data.sources.map(s => `<span class="source-chip">${s.title}</span>`).join("");
+        } else {
+          sourcesDiv.innerHTML = "";
+        }
+
+        answerCard.classList.add("visible");
+      } catch (err) {
+        errorCard.textContent = "Something went wrong. Please try again.";
+        errorCard.classList.add("visible");
+      } finally {
+        loading.classList.remove("visible");
+        askBtn.disabled = false;
+      }
+    }
+
+    askBtn.addEventListener("click", () => ask(questionInput.value));
+    questionInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") ask(questionInput.value);
+    });
+
+    // ── Simple markdown render ──
+    function marked(text) {
+      return text
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+        .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+        .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/^\- (.+)$/gm, "<li>$1</li>")
+        .replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>")
+        .replace(/\n\n/g, "</p><p>")
+        .replace(/^(.+)$/gm, (m) => m.startsWith("<") ? m : "<p>" + m + "</p>");
+    }
+
+    // ── Voice Recording ──
+    micBtn.addEventListener("click", async () => {
+      if (recording) {
+        stopRecording();
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : "audio/webm";
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
+        chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+        mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(chunks, { type: mimeType });
+          micStatus.textContent = "Transcribing...";
+          micBtn.classList.remove("recording");
+
+          // Convert to base64 and send as JSON
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const base64 = reader.result.split(",")[1];
+
+          try {
+            const res = await fetch("/api/voice/transcribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ audio: base64, mimeType }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.transcript) {
+                questionInput.value = data.transcript;
+                micStatus.textContent = "✓ Transcribed";
+                await ask(data.transcript);
+                setTimeout(() => { micStatus.textContent = ""; }, 2000);
+              }
+            } else {
+              micStatus.textContent = "Transcription failed";
+            }
+            } catch {
+              micStatus.textContent = "Transcription failed";
+            }
+          };
+          reader.readAsDataURL(blob);
+        };
+
+        mediaRecorder.start(500);
+        recording = true;
+        micBtn.classList.add("recording");
+        micStatus.textContent = "Recording...";
+      } catch (err) {
+        micStatus.textContent = "Microphone access denied";
+      }
+    });
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+        recording = false;
+      }
+    }
+
+    // ── Voice Output (TTS) ──
+    speakBtn.addEventListener("click", () => {
+      if (!lastAnswer) return;
+      if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+        speakBtn.textContent = "🔊 Listen";
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(lastAnswer.replace(/\*|#|\[.*?\]\(.*?\)/g, ""));
+      utterance.lang = "en-US";
+      utterance.rate = 0.95;
+      utterance.onstart = () => { speakBtn.textContent = "⏹ Stop"; };
+      utterance.onend = () => { speakBtn.textContent = "🔊 Listen"; };
+      speechSynthesis.speak(utterance);
+    });
+  </script>
+</body>
+</html>

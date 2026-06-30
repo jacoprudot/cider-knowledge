@@ -1,0 +1,20 @@
+# word_lab manual - Sampling
+
+> Source: Cider Institute of North America course materials
+
+## Sampling
+
+
+Once we know why we are testing and how much to trust the result, the next step is to take a sample of cider for analysis. Easy, right? There is a nice little sample valve on the tank; just walk over with a beaker, open the valve, and collect the sample. For some cidermakers and their reasons for testing, this may work. However, there are two problems associated with sampling that can affect the reliability of the result: representativeness and random error.
+
+The first goal of sampling is to ensure that the sample being tested represents the cider that is in the tank (or barrel, or bottle, or…) There are many reasons why the cider in the tank is different than the cider in the sample beaker: the cider may not be homogenous in the tank, the sample valve may be contaminated, or the sample beaker may be contaminated, to name a few.
+
+Two ways that the sample might not be representative is lack of uniformity of the cider are in space or in time. Physically, in the tank, the thing to be measured may not be distributed evenly. Sugar, for example, can stratify (higher concentration at the bottom of the tank, lower at the top). Alternatively, some analytes, like free and total sulfur dioxide, will take time to come to chemical equilibrium. Their concentration in the tank will change for a time until they stabilize. Ensuring the tank is well mixed and there has been enough time since any additions have been made before sampling will mitigate some of these errors of representativeness.
+
+The next potential problem with sampling is the random error that can be introduced by the sample valve itself. There are many little dead spots in these valves that the cider must travel through to get from the tank to the sample beaker. This provides ample opportunity for contamination. Even if valve hygiene is taken seriously, there is opportunity for residual water and/or detergents and disinfectants from cleaning to contaminate the sample. To best avoid this problem, pour enough cider to rinse the beaker from the valve into the sample beaker. Swirl that cider around the beaker and discard. Repeat this step twice more. This will also prevent any contamination from both the sample valve and the sample beaker from affecting the sample.
+
+The last consideration concerns the sample itself. Depending upon the test, the entire sample pulled from the tank may not be tested. The test will be performed on a sample of the sample. The cider sampled from the sample (i.e. the cider that is actually used for the test) also needs to be representative of the entire sample that was drawn from the tank. Practically this means it is important to mix the entire sample before removing a smaller sample to be used for testing – especially if it has sat for any amount of time. Some analytes, like alcohol or sulphur dioxide, are volatile, and so the sample will change over time as the analyte is lost to the environment. In these cases, protecting the sample from exposure to air may be helpful (i.e. keep the sample in a sealed container).
+
+At minimum, cider or juice should be tested twice for each analysis performed. If the two tests agree and the test results meet the specifications for standard deviation or CV, that is sufficient. If the two tests do not agree, then a third test is required. If this third test agrees with one of the original two tests, discard the result that doesn’t agree, or continue testing until the standard deviation or CV falls below the acceptable threshold when including all results.
+
+A subtle, but important point: testing the same sample twice double checks the precision of the measurement and the technician. Testing two different samples from the same tank, also checks against random error from sampling. The first is appropriate when validating the method, the second is appropriate for day-to-day testing.

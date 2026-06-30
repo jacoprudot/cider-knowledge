@@ -1,0 +1,17 @@
+{
+  "name": "cider-knowledge",
+  "version": "0.1.0",
+  "description": "AI-powered Q&A system for Cider Institute of North America",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "ingest": "python ingest/run_all.py"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "marked": "^14.1.0",
+    "openai": "^4.73.0"
+  }
+}
