@@ -463,7 +463,7 @@ function renderLoginPage(error, returnTo) {
 </head>
 <body>
   <div class="login-card">
-    <h1>🍎 Cider Institute</h1>
+    <img src="/logo.png" alt="Cider Institute of North America" style="max-width:220px;height:auto;margin-bottom:0.5rem;">
     <p class="subtitle">Knowledge Library — Member Access</p>
 
     ${errHtml}
@@ -575,7 +575,8 @@ function renderWikiPage(currentPath, content) {
 </head>
 <body>
   <nav>
-    <h2>🍎 Cider Institute<br>Knowledge Library</h2>
+    <img src="/logo.png" alt="Cider Institute" style="max-width:180px;height:auto;margin-bottom:1rem;filter:brightness(10);"><br>
+    <span style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--grey);">Knowledge Library</span>
     <div class="nav-section">
       <strong>Topics</strong>
       <a href="/vault/fermentation/">Fermentation</a>
