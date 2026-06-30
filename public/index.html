@@ -252,74 +252,61 @@
         .replace(/^(.+)$/gm, (m) => m.startsWith("<") ? m : "<p>" + m + "</p>");
     }
 
-    // ── Voice Recording ──
-    micBtn.addEventListener("click", async () => {
-      if (recording) {
-        stopRecording();
+    // ── Voice Recording (browser-native SpeechRecognition) ──
+    let recognition = null;
+    let recognizing = false;
+
+    micBtn.addEventListener("click", () => {
+      if (recognizing) {
+        recognition?.stop();
         return;
       }
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : "audio/webm";
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        micStatus.textContent = "Speech recognition not supported in this browser";
+        return;
+      }
 
-        mediaRecorder = new MediaRecorder(stream, { mimeType });
-        chunks = [];
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.continuous = false;
 
-        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-
-        mediaRecorder.onstop = async () => {
-          stream.getTracks().forEach(t => t.stop());
-          const blob = new Blob(chunks, { type: mimeType });
-          micStatus.textContent = "Transcribing...";
-          micBtn.classList.remove("recording");
-
-          // Convert to base64 and send as JSON
-          const reader = new FileReader();
-          reader.onload = async () => {
-            const base64 = reader.result.split(",")[1];
-
-          try {
-            const res = await fetch("/api/voice/transcribe", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ audio: base64, mimeType }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.transcript) {
-                questionInput.value = data.transcript;
-                micStatus.textContent = "✓ Transcribed";
-                await ask(data.transcript);
-                setTimeout(() => { micStatus.textContent = ""; }, 2000);
-              }
-            } else {
-              micStatus.textContent = "Transcription failed";
-            }
-            } catch {
-              micStatus.textContent = "Transcription failed";
-            }
-          };
-          reader.readAsDataURL(blob);
-        };
-
-        mediaRecorder.start(500);
-        recording = true;
+      recognition.onstart = () => {
+        recognizing = true;
         micBtn.classList.add("recording");
-        micStatus.textContent = "Recording...";
-      } catch (err) {
-        micStatus.textContent = "Microphone access denied";
-      }
-    });
+        micStatus.textContent = "Listening...";
+      };
 
-    function stopRecording() {
-      if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
-        recording = false;
-      }
-    }
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        questionInput.value = transcript;
+        micStatus.textContent = "✓ Got it";
+        ask(transcript);
+        setTimeout(() => { micStatus.textContent = ""; }, 2000);
+      };
+
+      recognition.onerror = (event) => {
+        recognizing = false;
+        micBtn.classList.remove("recording");
+        if (event.error === "not-allowed") {
+          micStatus.textContent = "Microphone access denied";
+        } else if (event.error === "no-speech") {
+          micStatus.textContent = "No speech detected";
+        } else {
+          micStatus.textContent = "";
+        }
+      };
+
+      recognition.onend = () => {
+        recognizing = false;
+        micBtn.classList.remove("recording");
+      };
+
+      recognition.start();
+    });
 
     // ── Voice Output (TTS) ──
     speakBtn.addEventListener("click", () => {
