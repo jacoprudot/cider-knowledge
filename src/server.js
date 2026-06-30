@@ -162,29 +162,37 @@ app.use(express.static(path.join(ROOT, "public")));
 app.use(requireAuth);
 
 // ── System prompt ──
-const SYSTEM_PROMPT = `You are a knowledgeable instructor at the Cider Institute of North America — the trusted authority in cidermaking education for over a decade. You help cider and perry producers learn their craft by answering questions using ONLY the official course materials provided below.
+const SYSTEM_PROMPT = `You are a knowledgeable instructor at the Cider Institute of North America — the trusted authority in cidermaking education for over a decade. You help cider and perry producers learn their craft. Answer using ONLY the official course materials provided below.
 
 YOUR TONE:
-You are warm, encouraging, and precise — like a seasoned cidermaker mentoring an apprentice. You represent the Cider Institute's credibility and intellectual honesty. You never oversimplify.
+Warm, encouraging, and precise — like a seasoned cidermaker mentoring an apprentice. You represent the Cider Institute's intellectual honesty and a decade of credibility.
 
-THE "IT DEPENDS" PHILOSOPHY:
-Cidermaking is both a science and an art. Most answers depend on context: What type of cider do you want to make? How big is your operation? What equipment do you have? What are your quality goals?
+CORE PRINCIPLE — ASK BEFORE YOU ANSWER:
+Cidermaking is both a science and an art. The best answer depends on context: the style of cider, the scale of the operation, the equipment available, and the cidermaker's goals.
 
-When the answer genuinely depends on these factors, you MUST:
-- Present the science-based principles from the course materials that apply
-- Explain what variables matter and WHY they matter
-- Give practical guidance for different scenarios (small vs large scale, traditional vs modern methods)
-- Leave room for the cidermaker's own judgment — these are artful decisions, not rigid rules
-- Ask clarifying questions back when the situation calls for it
+HERE IS HOW YOU MUST HANDLE EVERY QUESTION:
 
-Never give a one-size-fits-all answer when the reality is nuanced. The Cider Institute's authority comes from teaching cidermakers HOW to think, not WHAT to think.
+**If the question could have different answers depending on context (which is most questions):**
+1. Briefly acknowledge the question and what's at stake
+2. Ask 2-4 specific, concise clarifying questions — the same ones a real mentor would ask
+3. Briefly explain WHY these questions matter for the answer
+4. Keep this to 3-5 sentences total. Be warm, not clinical
+5. End with a specific prompt like "Tell me a bit about these and I can give you a much more useful answer."
+
+The clarifying questions should be about: cider/perry style, batch size, equipment, yeast strategy, quality goals, current stage of production, or specific symptoms if troubleshooting.
+
+**If the question is a straightforward factual lookup** (e.g., "What is malolactic fermentation?", "Define titratable acidity"):
+Answer directly with the science. Cite sources. Keep it concise.
+
+**When the user HAS provided enough context:**
+Give a specific, practical answer tailored to their situation. Don't re-explain all the variables — they already told you. Focus on what matters for THEM.
 
 RULES:
 1. Answer ONLY from the provided documents. Never make up information.
-2. Every answer MUST cite its source: "Source: [Document Name], [Section]"
-3. If the documents don't contain the answer, say: "I don't have enough information in the course materials to answer that question confidently." Then suggest which course module might cover it.
-4. When relevant, mention specific lab tests from the Lab Testing manual that the cidermaker can perform to diagnose their situation.
-5. Keep answers thorough but well-structured. Use sections with clear headings when covering multiple aspects of a question.`;
+2. Every factual answer MUST cite its source: "Source: [Document Name], [Section]"
+3. If the documents don't contain the answer, say so honestly and suggest which course module might cover it.
+4. When relevant, mention specific lab tests the cidermaker can perform (from the Lab Testing manual).
+5. Never give a one-size-fits-all answer when nuance matters. The Cider Institute teaches cidermakers HOW to think, not WHAT to think.`;
 
 // ── Vault Search (keyword + title match) ──
 async function searchVault(query) {
@@ -224,25 +232,41 @@ async function searchVault(query) {
 // ── POST /api/ask ──
 app.post("/api/ask", async (req, res) => {
   try {
-    const { question } = req.body;
+    const { question, history } = req.body;
     if (!question?.trim()) {
       return res.status(400).json({ error: "question is required" });
     }
 
-    const pages = await searchVault(question);
+    // Search vault for the full conversation context (last question + any context provided)
+    const searchQuery = history?.length
+      ? question + " " + history.map((h) => h.question + " " + (h.answer || "")).join(" ")
+      : question;
+    const pages = await searchVault(searchQuery);
     const context = pages
       .map((p) => `### ${p.title} (${p.file})\n${p.content}`)
       .join("\n\n---\n\n");
 
+    // Build messages array with conversation history
+    const messages = [{ role: "system", content: SYSTEM_PROMPT }];
+
+    // Add previous exchanges as context
+    if (history?.length) {
+      for (const turn of history.slice(-3)) {
+        // Only include last 3 turns
+        if (turn.question) messages.push({ role: "user", content: turn.question });
+        if (turn.answer) messages.push({ role: "assistant", content: turn.answer });
+      }
+    }
+
+    // Add current question
+    messages.push({
+      role: "user",
+      content: `COURSE MATERIALS:\n\n${context || "No relevant materials found."}\n\n---\n\nQUESTION: ${question}\n\nAnswer as a Cider Institute instructor:`,
+    });
+
     const completion = await deepseek.chat.completions.create({
       model: "deepseek-chat",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `COURSE MATERIALS:\n\n${context || "No relevant materials found."}\n\n---\n\nQUESTION: ${question}\n\nAnswer as a Cider Institute instructor:`,
-        },
-      ],
+      messages,
       temperature: 0.3,
       max_tokens: 1500,
     });

@@ -158,7 +158,11 @@
       </div>
     </div>
 
-    <p class="hint">Try: How much SO₂ should I add? · What causes H₂S in fermentation? · How do I test for volatile acidity?</p>
+    <p class="hint" id="hint">Try: How much SO₂ should I add? · What causes H₂S in fermentation? · How do I test for volatile acidity?</p>
+    <div class="conv-status" id="convStatus" style="display:none;">
+      <span>💬 Continuing conversation</span>
+      <button id="newConvBtn" style="background:none;border:none;color:var(--terracotta);cursor:pointer;font-family:inherit;font-size:0.8rem;margin-left:0.5rem;">(New topic)</button>
+    </div>
 
     <div class="error-card" id="errorCard"></div>
     <div class="loading" id="loading">
@@ -188,6 +192,27 @@
     const errorCard = document.getElementById("errorCard");
 
     let lastAnswer = "";
+    let conversationHistory = [];  // [{question, answer}]
+    const convStatus = document.getElementById("convStatus");
+    const newConvBtn = document.getElementById("newConvBtn");
+    const hintText = document.getElementById("hint");
+
+    newConvBtn.addEventListener("click", () => {
+      conversationHistory = [];
+      convStatus.style.display = "none";
+      hintText.style.display = "";
+      questionInput.value = "";
+      answerCard.classList.remove("visible");
+      lastAnswer = "";
+    });
+
+    function updateConvStatus() {
+      if (conversationHistory.length > 0) {
+        convStatus.style.display = "block";
+        hintText.style.display = "none";
+      }
+    }
+
     let mediaRecorder = null;
     let chunks = [];
     let recording = false;
@@ -205,7 +230,10 @@
         const res = await fetch("/api/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question }),
+          body: JSON.stringify({
+            question,
+            history: conversationHistory.slice(-4),  // Last 4 exchanges
+          }),
         });
 
         if (!res.ok) throw new Error("Server error");
@@ -214,6 +242,11 @@
         answerText.innerHTML = marked(data.answer);
         lastAnswer = data.answer;
         speakBtn.disabled = false;
+
+        // Store in conversation history
+        conversationHistory.push({ question, answer: data.answer });
+        if (conversationHistory.length > 10) conversationHistory.shift();
+        updateConvStatus();
 
         if (data.sources?.length) {
           sourcesDiv.innerHTML = "<h3>Sources</h3>" +
