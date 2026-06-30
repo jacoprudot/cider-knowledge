@@ -138,27 +138,33 @@ def extract_xlsx(filepath: Path) -> str:
     return "\n".join(parts)
 
 
-def transcribe_video(filepath: Path) -> str:
-    """Transcribe video using Whisper via Python."""
-    import subprocess
-    import tempfile
+def transcribe_video(filepath: Path, model_size: str = "tiny") -> str:
+    """Transcribe video using OpenAI Whisper.
 
-    # Extract audio to temp WAV
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        tmp_path = tmp.name
+    Requires: pip install openai-whisper
+    Whisper reads video files directly — no ffmpeg extraction needed.
 
-    try:
-        subprocess.run([
-            "ffmpeg", "-i", str(filepath), "-vn", "-acodec", "pcm_s16le",
-            "-ar", "16000", "-ac", "1", tmp_path, "-y", "-loglevel", "error"
-        ], check=True, timeout=300)
+    Model sizes: tiny (fastest, ~1GB RAM), base (~1.5GB), small (~2.5GB), medium (~5GB)
+    Speed on ARM CPU (tiny): ~10x realtime for English
+    """
+    import time
+    import whisper
 
-        import whisper
-        model = whisper.load_model("base")
-        result = model.transcribe(tmp_path, language="en")
-        return result["text"]
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
+    file_size_mb = filepath.stat().st_size / (1024 * 1024)
+    print(f"   Loading whisper model '{model_size}'...")
+    t0 = time.time()
+    model = whisper.load_model(model_size)
+    print(f"   Model loaded in {time.time() - t0:.0f}s")
+
+    print(f"   Transcribing ({file_size_mb:.0f} MB video)...")
+    t0 = time.time()
+    result = model.transcribe(str(filepath), language="en")
+    elapsed = time.time() - t0
+
+    words = len(result["text"].split())
+    print(f"   Done in {elapsed:.0f}s — {words} words ({words / elapsed:.0f} words/sec)")
+
+    return result["text"]
 
 
 def save_to_vault(topic: str, title: str, content: str):
