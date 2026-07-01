@@ -243,6 +243,8 @@ app.delete("/api/conversations/:id", (req, res) => {
 app.patch("/api/conversations/:convId/messages/:msgIdx/feedback", (req, res) => {
   const conv = conversations.get(req.params.convId);
   if (!conv) return res.status(404).json({ error: "Not found" });
+  const userHash = getUserHash(req);
+  if (conv.userId !== userHash) return res.status(403).json({ error: "Not your conversation" });
   const idx = parseInt(req.params.msgIdx);
   if (!conv.messages[idx]) return res.status(404).json({ error: "Message not found" });
   conv.messages[idx].feedback = req.body.feedback; // "up", "down", or null
