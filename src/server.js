@@ -428,6 +428,11 @@ async function searchVault(query) {
         const totalScore = titleScore + contentScore;
         if (totalScore <= 0) return;
 
+        // DEBUG: log pH file scoring
+        if (relPath.includes("ph-(ph-meter)")) {
+          console.log("DEBUG pH file:", { title, titleScore, contentScore: Math.round((totalScore - titleScore) * 100) / 100, totalScore: Math.round(totalScore * 100) / 100, docLen: content.length });
+        }
+
         // For large files: chunk and return best chunks
         if (content.length > CHUNK_SIZE + CHUNK_OVERLAP) {
           const chunks = [];
