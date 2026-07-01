@@ -505,7 +505,7 @@
     // ── Connection status ──
     async function checkHealth() {
       try {
-        const res = await fetch("/api/login", { method: "HEAD" });
+        const res = await fetch("/api/health");
         statusDot.classList.toggle("offline", !res.ok);
       } catch { statusDot.classList.add("offline"); }
     }

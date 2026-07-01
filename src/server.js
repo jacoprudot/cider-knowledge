@@ -24,6 +24,15 @@ const deepseek = new OpenAI({
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// ── Security headers ──
+app.use((req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
 // ── Vault path ──
 const VAULT_ROOT = path.join(ROOT, "vault");
 
@@ -175,8 +184,15 @@ app.get("/api/logout", (req, res) => {
   res.redirect("/login");
 });
 
-// Generate magic link (7-day pre-authenticated URL)
-app.get("/api/magic", (req, res) => {
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", vaultFiles: wikiIndex.size });
+});
+
+// Generate magic link (requires access code)
+app.post("/api/magic", (req, res) => {
+  if (req.body.code !== ACCESS_CODE) {
+    return res.status(401).json({ error: "Invalid access code" });
+  }
   const magicToken = generateMagicLink();
   const host = req.headers.host || "cider-demo.leongael.xyz";
   const protocol = host.includes("localhost") ? "http" : "https";
@@ -184,8 +200,8 @@ app.get("/api/magic", (req, res) => {
   res.json({ url: magicUrl, expires: "7 days" });
 });
 
-// ── Static files (public, but UI redirects to login if not authed) ──
-app.use(express.static(path.join(ROOT, "public")));
+// ── Static files — serve only assets, NOT index.html ──
+app.use(express.static(path.join(ROOT, "public"), { index: false }));
 
 // ── Protected routes ──
 app.use(requireAuth);
@@ -199,6 +215,8 @@ app.get("/api/conversations", (req, res) => {
 app.get("/api/conversations/:id", (req, res) => {
   const conv = conversations.get(req.params.id);
   if (!conv) return res.status(404).json({ error: "Conversation not found" });
+  const userHash = getUserHash(req);
+  if (conv.userId !== userHash) return res.status(403).json({ error: "Not your conversation" });
   res.json(conv);
 });
 
@@ -215,6 +233,8 @@ app.post("/api/conversations", (req, res) => {
 app.delete("/api/conversations/:id", (req, res) => {
   const conv = conversations.get(req.params.id);
   if (!conv) return res.status(404).json({ error: "Not found" });
+  const userHash = getUserHash(req);
+  if (conv.userId !== userHash) return res.status(403).json({ error: "Not your conversation" });
   conversations.delete(req.params.id);
   res.json({ ok: true });
 });
@@ -317,13 +337,14 @@ async function searchVault(query) {
         const title = content.match(/^#\s+(.+)/m)?.[1] || entry.name.replace(".md", "").replace(/-/g, " ");
         const relPath = path.relative(VAULT_ROOT, full).replace(/\\/g, "/");
 
-        // Score: title match bonus + term frequency
+        // Score: title match bonus + normalized term frequency (per 1000 chars)
         const titleScore = terms.reduce((s, t) => s + (title.toLowerCase().includes(t) ? 10 : 0), 0);
         const contentLower = content.toLowerCase();
-        const totalScore = terms.reduce((s, t) => {
+        const docLen = Math.max(content.length, 1000);
+        const totalScore = titleScore + terms.reduce((s, t) => {
           const count = contentLower.split(t).length - 1;
-          return s + count;
-        }, titleScore);
+          return s + (count * 1000) / docLen; // normalize by doc length (frequency per 1000 chars)
+        }, 0);
 
         if (totalScore <= 0) return;
 
@@ -677,7 +698,14 @@ function renderLoginPage(error, returnTo) {
     });
     document.getElementById("magicForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const res = await fetch("/api/magic");
+      const code = document.getElementById("code").value;
+      if (!code) { document.getElementById("code").focus(); return; }
+      const res = await fetch("/api/magic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code }),
+      });
+      if (!res.ok) { alert("Incorrect access code"); return; }
       const data = await res.json();
       document.getElementById("magicUrl").textContent = data.url;
       document.getElementById("magicSent").classList.add("visible");
