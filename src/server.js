@@ -60,8 +60,13 @@ function verifyToken(token) {
   if (!token) return false;
   const [code, signature] = token.split(".");
   if (!code || !signature) return false;
-  const expected = signToken(code);
-  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  try {
+    const expected = signToken(code);
+    const a = Buffer.from(token);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch { return false; }
 }
 
 // Magic link: generate a time-limited signed access URL
@@ -77,14 +82,19 @@ function verifyMagicToken(token) {
   if (!token) return false;
   const parts = token.split(".");
   if (parts.length !== 3) return false;
-  const [prefix, expires, signature] = parts;
+  const [prefix, expires] = parts;
   if (prefix !== "magic") return false;
   if (Date.now() > parseInt(expires)) return false;
-  const payload = `magic.${expires}`;
-  const hmac = crypto.createHmac("sha256", COOKIE_SECRET);
-  hmac.update(payload);
-  const expected = `${payload}.${hmac.digest("hex")}`;
-  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  try {
+    const payload = `magic.${expires}`;
+    const hmac = crypto.createHmac("sha256", COOKIE_SECRET);
+    hmac.update(payload);
+    const expected = `${payload}.${hmac.digest("hex")}`;
+    const a = Buffer.from(token);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch { return false; }
 }
 
 // Auth middleware for protected routes
@@ -268,10 +278,33 @@ GOLDEN RULES:
 4. Never loop — if the user gave you context, USE IT. Don't ask again.
 5. Be conversational. This is a dialogue, not a Q&A terminal.`;
 
-// ── Vault Search (keyword + title match) ──
+// ── Vault Search (keyword + title match, chunked for large files) ──
+const STOP_WORDS = new Set([
+  "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+  "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
+  "being", "have", "has", "had", "do", "does", "did", "will", "would",
+  "could", "should", "may", "might", "can", "shall", "you", "your",
+  "we", "they", "them", "their", "its", "it", "this", "that", "these",
+  "those", "am", "not", "no", "if", "so", "as", "what", "which", "who",
+  "whom", "how", "when", "where", "why", "all", "each", "every", "both",
+  "few", "more", "most", "other", "some", "such", "only", "own", "same",
+  "than", "too", "very", "just", "about", "also", "into", "over",
+]);
+
+const CHUNK_SIZE = 4000;
+const CHUNK_OVERLAP = 500;
+
+function filterTerms(query) {
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 1 && !STOP_WORDS.has(t));
+}
+
 async function searchVault(query) {
   const results = [];
-  const terms = query.toLowerCase().split(/\s+/);
+  const terms = filterTerms(query);
+  if (terms.length === 0) return results;
 
   async function walk(dir) {
     const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -281,26 +314,57 @@ async function searchVault(query) {
         await walk(full);
       } else if (entry.name.endsWith(".md") && entry.name !== "index.md") {
         const content = await fs.readFile(full, "utf-8");
-        const title = content.match(/^#\s+(.+)/m)?.[1] || entry.name.replace(".md", "");
-        const score = terms.reduce((s, t) => {
-          const inTitle = title.toLowerCase().includes(t) ? 10 : 0;
-          const matches = content.toLowerCase().split(t).length - 1;
-          return s + inTitle + matches;
-        }, 0);
-        if (score > 0) {
-          results.push({
-            file: path.relative(VAULT_ROOT, full).replace(/\\/g, "/"),
-            title,
-            content: content.slice(0, 8000),
-            score,
-          });
+        const title = content.match(/^#\s+(.+)/m)?.[1] || entry.name.replace(".md", "").replace(/-/g, " ");
+        const relPath = path.relative(VAULT_ROOT, full).replace(/\\/g, "/");
+
+        // Score: title match bonus + term frequency
+        const titleScore = terms.reduce((s, t) => s + (title.toLowerCase().includes(t) ? 10 : 0), 0);
+        const contentLower = content.toLowerCase();
+        const totalScore = terms.reduce((s, t) => {
+          const count = contentLower.split(t).length - 1;
+          return s + count;
+        }, titleScore);
+
+        if (totalScore <= 0) return;
+
+        // For large files: chunk and return best chunks
+        if (content.length > CHUNK_SIZE + CHUNK_OVERLAP) {
+          const chunks = [];
+          let pos = 0;
+          while (pos < content.length) {
+            const chunk = content.slice(pos, pos + CHUNK_SIZE);
+            // Score this chunk specifically
+            const chunkLower = chunk.toLowerCase();
+            const chunkScore = terms.reduce((s, t) => {
+              return s + (chunkLower.split(t).length - 1);
+            }, 0);
+            if (chunkScore > 0) {
+              chunks.push({ text: chunk, score: chunkScore });
+            }
+            pos += CHUNK_SIZE - CHUNK_OVERLAP;
+          }
+          // Return top 3 chunks from this file
+          chunks.sort((a, b) => b.score - a.score);
+          for (const c of chunks.slice(0, 3)) {
+            results.push({ file: relPath, title, content: c.text, score: c.score + titleScore });
+          }
+        } else {
+          results.push({ file: relPath, title, content: content, score: totalScore });
         }
       }
     }
   }
 
   await walk(VAULT_ROOT);
-  return results.sort((a, b) => b.score - a.score).slice(0, 5);
+  // Deduplicate by file, keep highest-scoring chunks
+  results.sort((a, b) => b.score - a.score);
+  const seen = new Set();
+  const deduped = [];
+  for (const r of results) {
+    const key = r.file + r.content.slice(0, 50);
+    if (!seen.has(key)) { seen.add(key); deduped.push(r); }
+  }
+  return deduped.slice(0, 6);
 }
 
 // ── POST /api/ask ──
@@ -327,8 +391,9 @@ app.post("/api/ask", async (req, res) => {
     // Build conversation context from stored messages
     const recentMessages = conv.messages.slice(-8); // last 8 turns
 
-    // Search vault using the full conversation context
-    const searchQuery = question + " " + recentMessages.map((m) => m.content).join(" ");
+    // Search vault using question + last 2 messages only (avoid noise from long history)
+    const searchContext = recentMessages.slice(-2).map((m) => m.content).join(" ");
+    const searchQuery = question + " " + searchContext;
     const pages = await searchVault(searchQuery);
     const vaultContext = pages.map((p) => `### ${p.title} (${p.file})\n${p.content}`).join("\n\n---\n\n");
 
