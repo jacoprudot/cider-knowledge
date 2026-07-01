@@ -3,7 +3,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { marked } from "marked";
 import fs from "fs/promises";
-import { createReadStream } from "fs";
 import crypto from "crypto";
 import OpenAI from "openai";
 
@@ -229,14 +228,6 @@ app.get("/api/logout", (req, res) => {
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", vaultFiles: wikiIndex.size });
-});
-
-// Debug: trace search results
-app.get("/api/debug/search", async (req, res) => {
-  const q = req.query.q || "ph";
-  const terms = filterTerms(q);
-  const results = await searchVault(q);
-  res.json({ query: q, terms, count: results.length, results: results.map((r) => ({ title: r.title, file: r.file, score: Math.round(r.score * 100) / 100 })) });
 });
 
 // Generate magic link (requires access code)
@@ -547,34 +538,6 @@ app.post("/api/ask", async (req, res) => {
   }
 });
 
-// ── POST /api/ask-voice ──
-app.post("/api/ask-voice", async (req, res) => {
-  try {
-    const { transcript } = req.body;
-    if (!transcript?.trim()) {
-      return res.status(400).json({ error: "transcript is required" });
-    }
-
-    const pages = await searchVault(transcript);
-    const context = pages.map((p) => `### ${p.title} (${p.file})\n${p.content}`).join("\n\n---\n\n");
-
-    const completion = await deepseek.chat.completions.create({
-      model: "deepseek-chat",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `COURSE MATERIALS:\n\n${context || "No relevant materials found."}\n\n---\n\nQUESTION: ${transcript}\n\nAnswer as a Cider Institute instructor:` },
-      ],
-      temperature: 0.3,
-      max_tokens: 1500,
-    });
-
-    res.json({ answer: completion.choices[0].message.content, sources: pages.map((p) => ({ title: p.title, file: p.file })) });
-  } catch (err) {
-    console.error("/api/ask-voice error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 // ── Graph view (must be before /vault/* wildcard) ──
 app.get("/vault/graph", (req, res) => {
   res.sendFile(path.join(ROOT, "public", "graph.html"));
@@ -624,41 +587,6 @@ app.get("/vault/*", async (req, res) => {
   } catch (err) {
     console.error("/vault error:", err);
     res.status(500).type("html").send(renderWikiPage("Error", "<h1>Internal error</h1>"));
-  }
-});
-
-// ── POST /api/voice/transcribe ──
-app.post("/api/voice/transcribe", async (req, res) => {
-  try {
-    const { audio } = req.body;
-    if (!audio) return res.status(400).json({ error: "audio (base64) is required" });
-
-    const audioBuffer = Buffer.from(audio, "base64");
-    let transcript = "";
-    try {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      await fs.mkdir(path.join(ROOT, ".tmp"), { recursive: true });
-      const tmpPath = path.join(ROOT, ".tmp", `recording-${Date.now()}.webm`);
-      await fs.writeFile(tmpPath, audioBuffer);
-
-      const whisperRes = await openai.audio.transcriptions.create({
-        model: "whisper-1",
-        file: createReadStream(tmpPath),
-        language: "en",
-        response_format: "text",
-      });
-
-      transcript = typeof whisperRes === "string" ? whisperRes : whisperRes;
-      await fs.unlink(tmpPath).catch(() => {});
-    } catch (err) {
-      console.error("Whisper error:", err.message);
-      return res.status(500).json({ error: "Transcription failed" });
-    }
-
-    res.json({ transcript: transcript.trim() });
-  } catch (err) {
-    console.error("/api/voice/transcribe error:", err);
-    res.status(500).json({ error: "Transcription failed" });
   }
 });
 
