@@ -234,8 +234,9 @@ app.get("/api/health", (req, res) => {
 // Debug: trace search results
 app.get("/api/debug/search", async (req, res) => {
   const q = req.query.q || "ph";
+  const terms = filterTerms(q);
   const results = await searchVault(q);
-  res.json(results.map((r) => ({ title: r.title, file: r.file, score: Math.round(r.score * 100) / 100 })));
+  res.json({ query: q, terms, count: results.length, results: results.map((r) => ({ title: r.title, file: r.file, score: Math.round(r.score * 100) / 100 })) });
 });
 
 // Generate magic link (requires access code)
