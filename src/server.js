@@ -486,6 +486,11 @@ app.post("/api/voice/transcribe", async (req, res) => {
   }
 });
 
+// ── Graph view ──
+app.get("/vault/graph", (req, res) => {
+  res.sendFile(path.join(ROOT, "public", "graph.html"));
+});
+
 // ── Serve Q&A UI ──
 app.get("/", (req, res) => {
   res.sendFile(path.join(ROOT, "public", "index.html"));
@@ -691,6 +696,7 @@ function renderWikiPage(currentPath, content) {
       <a href="/vault/perry-production/">Perry Production</a>
       <a href="/vault/aroma-chemistry/">Aroma Chemistry</a>
     </div>
+    <a href="/vault/graph" style="margin-top:1.5rem;font-size:0.82rem;">🕸️ Knowledge Graph</a>
     <div class="logout-link">
       <a href="/">← Q&A</a>
       <a href="/api/logout" style="margin-top:0.5rem;">Log out</a>

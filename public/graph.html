@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cider Institute — Knowledge Graph</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Oswald:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --charcoal: #1a1a1a; --cream: #F8F5F0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Lato', sans-serif; background: var(--charcoal); color: #fff; height: 100vh; display: flex; flex-direction: column; }
+    header {
+      padding: 0.75rem 1.5rem; background: rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    header h1 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.1rem; }
+    header a { color: #ccc; text-decoration: none; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    header a:hover { color: #fff; }
+    .legend { display: flex; gap: 1rem; align-items: center; font-size: 0.75rem; }
+    .legend span { display: flex; align-items: center; gap: 0.3rem; }
+    .legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    #graph { flex: 1; cursor: grab; }
+    #graph:active { cursor: grabbing; }
+    .tooltip {
+      position: absolute; background: rgba(0,0,0,0.85); color: #fff;
+      padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem;
+      pointer-events: none; opacity: 0; transition: opacity 0.15s;
+      max-width: 240px; z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🍎 Knowledge Graph</h1>
+    <div class="legend">
+      <span><span class="dot" style="background:#8B9A6D"></span>Fermentation</span>
+      <span><span class="dot" style="background:#6B7B4F"></span>Lab Testing</span>
+      <span><span class="dot" style="background:#BFA98A"></span>Sensory</span>
+      <span><span class="dot" style="background:#C9B896"></span>Facility</span>
+      <span><span class="dot" style="background:#4A7072"></span>Perry</span>
+      <span><span class="dot" style="background:#B85C28"></span>Aroma</span>
+    </div>
+    <div>
+      <a href="/vault/">← Wiki</a>
+      <a href="/" style="margin-left:1.5rem;">Q&A</a>
+    </div>
+  </header>
+  <svg id="graph"></svg>
+  <div class="tooltip" id="tooltip"></div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const svg = d3.select("#graph");
+    const tooltip = d3.select("#tooltip");
+    const width = () => window.innerWidth;
+    const height = () => window.innerHeight - 48;
+
+    // Load graph data
+    fetch("/graph-data.json")
+      .then((r) => r.json())
+      .then((graph) => {
+        const nodes = graph.nodes.map((d) => ({ ...d }));
+        const links = graph.edges.map((d) => ({ ...d }));
+        const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+        // Compute node degree for sizing
+        const degree = new Map(nodes.map((n) => [n.id, 0]));
+        links.forEach((l) => {
+          degree.set(l.source, (degree.get(l.source) || 0) + 1);
+          degree.set(l.target, (degree.get(l.target) || 0) + 1);
+        });
+
+        const simulation = d3
+          .forceSimulation(nodes)
+          .force("link", d3.forceLink(links).id((d) => d.id).distance(100))
+          .force("charge", d3.forceManyBody().strength(-200))
+          .force("center", d3.forceCenter(width() / 2, height() / 2))
+          .force("collision", d3.forceCollide(20));
+
+        // Draw edges
+        const link = svg
+          .append("g")
+          .selectAll("line")
+          .data(links)
+          .join("line")
+          .attr("stroke", "rgba(255,255,255,0.12)")
+          .attr("stroke-width", (d) => Math.min(d.weight / 3, 3));
+
+        // Draw nodes
+        const node = svg
+          .append("g")
+          .selectAll("g")
+          .data(nodes)
+          .join("g")
+          .call(drag(simulation));
+
+        node
+          .append("circle")
+          .attr("r", (d) => 4 + (degree.get(d.id) || 0) * 2)
+          .attr("fill", (d) => d.color)
+          .attr("stroke", "rgba(255,255,255,0.3)")
+          .attr("stroke-width", 1);
+
+        node
+          .append("text")
+          .text((d) => d.title.length > 30 ? d.title.slice(0, 28) + "…" : d.title)
+          .attr("x", 8)
+          .attr("y", 3)
+          .attr("font-size", "9px")
+          .attr("fill", "#aaa")
+          .attr("font-family", "Lato, sans-serif");
+
+        // Tooltip + click
+        node
+          .on("mouseenter", (event, d) => {
+            tooltip.style("opacity", 1).html(`<strong>${d.title}</strong><br><span style="color:#aaa">${d.topic.replace(/-/g, " ")}</span>`);
+          })
+          .on("mousemove", (event) => {
+            tooltip.style("left", event.pageX + 12 + "px").style("top", event.pageY - 20 + "px");
+          })
+          .on("mouseleave", () => tooltip.style("opacity", 0))
+          .on("click", (event, d) => {
+            window.open(`/vault/${d.id}`, "_self");
+          });
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+          node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+        });
+
+        // Resize
+        window.addEventListener("resize", () => {
+          simulation.force("center", d3.forceCenter(width() / 2, height() / 2));
+          simulation.alpha(0.3).restart();
+        });
+      });
+
+    function drag(simulation) {
+      function started(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+      function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+      }
+      function ended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }
+      return d3.drag().on("start", started).on("drag", dragged).on("end", ended);
+    }
+  </script>
+</body>
+</html>
