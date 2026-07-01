@@ -168,6 +168,7 @@
     }
     .feedback-btn:hover { opacity: 1; background: rgba(0,0,0,0.04); }
     .feedback-btn.active { opacity: 1; }
+    .speak-btn { font-size: 0.8rem; }
 
     /* Typing */
     .typing { display: none; }
@@ -393,6 +394,27 @@
       messagesEl.appendChild(typingEl);
 
       // Feedback handlers
+      // TTS button on last assistant message
+      const lastAssistantMsg = [...messagesEl.querySelectorAll(".message.assistant .bubble")].pop();
+      if (lastAssistantMsg && !lastAssistantMsg.querySelector(".speak-btn")) {
+        const speakBtn = document.createElement("button");
+        speakBtn.className = "feedback-btn speak-btn";
+        speakBtn.textContent = "🔊";
+        speakBtn.title = "Read aloud";
+        speakBtn.addEventListener("click", () => {
+          if (speechSynthesis.speaking) { speechSynthesis.cancel(); speakBtn.textContent = "🔊"; return; }
+          const text = lastAssistantMsg.querySelector(".msg-footer")?.previousSibling?.textContent
+            || lastAssistantMsg.textContent.replace(/👍|👎/g, "");
+          const u = new SpeechSynthesisUtterance(text.replace(/\*|#|\[.*?\]\(.*?\)/g, ""));
+          u.lang = "en-US"; u.rate = 0.95;
+          u.onstart = () => { speakBtn.textContent = "⏹"; };
+          u.onend = () => { speakBtn.textContent = "🔊"; };
+          speechSynthesis.speak(u);
+        });
+        const footer = lastAssistantMsg.querySelector(".msg-footer");
+        if (footer) footer.prepend(speakBtn);
+      }
+
       messagesEl.querySelectorAll(".feedback-btn").forEach((btn) => {
         btn.addEventListener("click", async () => {
           const idx = parseInt(btn.dataset.msg);

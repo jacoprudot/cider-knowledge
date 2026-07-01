@@ -36,13 +36,48 @@ app.use((req, res, next) => {
 // ── Vault path ──
 const VAULT_ROOT = path.join(ROOT, "vault");
 
-// ── Conversation store (in-memory, per-user) ──
-const conversations = new Map(); // id → { id, userId, title, messages[], createdAt, updatedAt }
+// ── Conversation store (disk-persisted, per-user) ──
+const conversations = new Map();
+const CONVERSATIONS_FILE = path.join(ROOT, ".data", "conversations.json");
+
+// Load conversations from disk on startup
+async function loadConversations() {
+  try {
+    await fs.mkdir(path.join(ROOT, ".data"), { recursive: true });
+    const raw = await fs.readFile(CONVERSATIONS_FILE, "utf-8");
+    const data = JSON.parse(raw);
+    for (const [id, conv] of Object.entries(data)) {
+      conversations.set(id, conv);
+    }
+    console.log(`   Loaded ${conversations.size} conversations`);
+  } catch { /* file doesn't exist yet — OK */ }
+}
+
+// Persist conversations to disk (debounced — called after mutations)
+let saveTimeout;
+function scheduleSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    try {
+      const data = Object.fromEntries(conversations);
+      await fs.writeFile(CONVERSATIONS_FILE, JSON.stringify(data), "utf-8");
+    } catch {}
+  }, 2000); // debounce 2s
+}
 
 function getUserHash(req) {
-  // Use cookie token hash as user identifier
-  const token = req.cookies?.[COOKIE_NAME] || "anonymous";
-  return crypto.createHash("sha256").update(token).digest("hex").slice(0, 16);
+  // Extract sessionId from cookie for unique user identity
+  // Regular token: code.signature.sessionId → sessionId at index 2
+  // Magic token: magic.expires.sessionId.signature → sessionId at index 2
+  const token = req.cookies?.[COOKIE_NAME] || "";
+  const parts = token.split(".");
+  let sessionId;
+  if (parts[0] === "magic") {
+    sessionId = parts[2]; // magic.expires.sessionId.signature
+  } else {
+    sessionId = parts[2]; // code.signature.sessionId
+  }
+  return crypto.createHash("sha256").update(sessionId || token || "anonymous").digest("hex").slice(0, 16);
 }
 
 function getUserConversations(userHash) {
@@ -55,22 +90,28 @@ function getUserConversations(userHash) {
   return userConvs.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 }
 
-// ── Auth: simple shared access code with signed cookie ──
+// ── Auth: shared access code with unique session per user ──
 const COOKIE_NAME = "cider_token";
 const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString("hex");
 
-function signToken(code) {
+function signToken(code, sessionId) {
+  // Format: code.signature.sessionId
+  // sessionId ensures each login gets a unique user identity even with same code
   const hmac = crypto.createHmac("sha256", COOKIE_SECRET);
-  hmac.update(code);
-  return `${code}.${hmac.digest("hex")}`;
+  hmac.update(`${code}:${sessionId}`);
+  return `${code}.${hmac.digest("hex")}.${sessionId}`;
 }
 
 function verifyToken(token) {
   if (!token) return false;
-  const [code, signature] = token.split(".");
-  if (!code || !signature) return false;
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  const [code, signature, sessionId] = parts;
+  if (!code || !signature || !sessionId) return false;
   try {
-    const expected = signToken(code);
+    const hmac = crypto.createHmac("sha256", COOKIE_SECRET);
+    hmac.update(`${code}:${sessionId}`);
+    const expected = `${code}.${hmac.digest("hex")}.${sessionId}`;
     const a = Buffer.from(token);
     const b = Buffer.from(expected);
     if (a.length !== b.length) return false;
@@ -78,10 +119,11 @@ function verifyToken(token) {
   } catch { return false; }
 }
 
-// Magic link: generate a time-limited signed access URL
+// Magic link: generate a time-limited signed access URL with unique session
 function generateMagicLink() {
   const expires = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-  const payload = `magic.${expires}`;
+  const sessionId = crypto.randomUUID();
+  const payload = `magic.${expires}.${sessionId}`;
   const hmac = crypto.createHmac("sha256", COOKIE_SECRET);
   hmac.update(payload);
   return `${payload}.${hmac.digest("hex")}`;
@@ -90,12 +132,12 @@ function generateMagicLink() {
 function verifyMagicToken(token) {
   if (!token) return false;
   const parts = token.split(".");
-  if (parts.length !== 3) return false;
-  const [prefix, expires] = parts;
+  if (parts.length !== 4) return false;
+  const [prefix, expires, sessionId] = parts;
   if (prefix !== "magic") return false;
   if (Date.now() > parseInt(expires)) return false;
   try {
-    const payload = `magic.${expires}`;
+    const payload = `magic.${expires}.${sessionId}`;
     const hmac = crypto.createHmac("sha256", COOKIE_SECRET);
     hmac.update(payload);
     const expected = `${payload}.${hmac.digest("hex")}`;
@@ -165,7 +207,8 @@ app.get("/login", (req, res) => {
 app.post("/api/login", (req, res) => {
   const { code, return: returnTo } = req.body;
   if (code === ACCESS_CODE) {
-    const token = signToken(code);
+    const sessionId = crypto.randomUUID();
+    const token = signToken(code, sessionId);
     const maxAge = 30 * 24 * 60 * 60; // 30 days
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
@@ -227,6 +270,7 @@ app.post("/api/conversations", (req, res) => {
   const now = new Date().toISOString();
   const conv = { id, userId: userHash, title, messages: [], createdAt: now, updatedAt: now };
   conversations.set(id, conv);
+  scheduleSave();
   res.json({ id, title, createdAt: now });
 });
 
@@ -236,6 +280,7 @@ app.delete("/api/conversations/:id", (req, res) => {
   const userHash = getUserHash(req);
   if (conv.userId !== userHash) return res.status(403).json({ error: "Not your conversation" });
   conversations.delete(req.params.id);
+  scheduleSave();
   res.json({ ok: true });
 });
 
@@ -339,15 +384,28 @@ async function searchVault(query) {
         const title = content.match(/^#\s+(.+)/m)?.[1] || entry.name.replace(".md", "").replace(/-/g, " ");
         const relPath = path.relative(VAULT_ROOT, full).replace(/\\/g, "/");
 
-        // Score: title match bonus + normalized term frequency (per 1000 chars)
-        const titleScore = terms.reduce((s, t) => s + (title.toLowerCase().includes(t) ? 10 : 0), 0);
+        // Score: heavy title weight + phrase bonus + normalized TF
+        const titleLower = title.toLowerCase();
+        const queryLower = query.toLowerCase().trim();
+        let titleScore = 0;
+
+        // +200 for exact title match
+        if (titleLower === queryLower) titleScore += 200;
+        // +50 per individual term match in title
+        titleScore += terms.reduce((s, t) => s + (titleLower.includes(t) ? 50 : 0), 0);
+        // +100 if the full query phrase appears in the title
+        if (titleLower.includes(queryLower)) titleScore += 100;
+
         const contentLower = content.toLowerCase();
         const docLen = Math.max(content.length, 1000);
-        const totalScore = titleScore + terms.reduce((s, t) => {
+        let contentScore = terms.reduce((s, t) => {
           const count = contentLower.split(t).length - 1;
-          return s + (count * 1000) / docLen; // normalize by doc length (frequency per 1000 chars)
+          return s + (count * 1000) / docLen;
         }, 0);
+        // +30 if the exact query phrase appears in content
+        if (contentLower.includes(queryLower)) contentScore += 30;
 
+        const totalScore = titleScore + contentScore;
         if (totalScore <= 0) return;
 
         // For large files: chunk and return best chunks
@@ -366,10 +424,11 @@ async function searchVault(query) {
             }
             pos += CHUNK_SIZE - CHUNK_OVERLAP;
           }
-          // Return top 3 chunks from this file
+          // Return best chunk per file (avoid flooding results with one doc)
           chunks.sort((a, b) => b.score - a.score);
-          for (const c of chunks.slice(0, 3)) {
-            results.push({ file: relPath, title, content: c.text, score: c.score + titleScore });
+          const best = chunks[0];
+          if (best) {
+            results.push({ file: relPath, title, content: best.text, score: best.score + titleScore });
           }
         } else {
           results.push({ file: relPath, title, content: content, score: totalScore });
@@ -409,6 +468,7 @@ app.post("/api/ask", async (req, res) => {
       const now = new Date().toISOString();
       conv = { id, userId: userHash, title: question.slice(0, 120), messages: [], createdAt: now, updatedAt: now };
       conversations.set(id, conv);
+      scheduleSave();
     }
 
     // Build conversation context from stored messages
@@ -448,6 +508,7 @@ app.post("/api/ask", async (req, res) => {
     conv.messages.push({ role: "user", content: question, timestamp: now });
     conv.messages.push({ role: "assistant", content: answer, timestamp: now });
     conv.updatedAt = now;
+    scheduleSave();
     // Update title from first question if still default
     if (conv.messages.length <= 2) {
       conv.title = question.slice(0, 120);
@@ -852,7 +913,7 @@ function addWikilinks(html) {
 }
 
 // ── Start ──
-buildWikiIndex().then(() => {
+loadConversations().then(() => buildWikiIndex()).then(() => {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🍎 Cider Knowledge server running on :${PORT}`);
     console.log(`   Access code: ${ACCESS_CODE === "cider2026" ? "cider2026 (default — set ACCESS_CODE env var to change)" : "(custom)"}`);
