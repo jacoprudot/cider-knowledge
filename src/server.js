@@ -231,6 +231,13 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", vaultFiles: wikiIndex.size });
 });
 
+// Debug: trace search results
+app.get("/api/debug/search", async (req, res) => {
+  const q = req.query.q || "ph";
+  const results = await searchVault(q);
+  res.json(results.map((r) => ({ title: r.title, file: r.file, score: Math.round(r.score * 100) / 100 })));
+});
+
 // Generate magic link (requires access code)
 app.post("/api/magic", (req, res) => {
   if (req.body.code !== ACCESS_CODE) {
