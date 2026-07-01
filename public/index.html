@@ -10,8 +10,7 @@
   <style>
     :root {
       --cream: #F8F5F0; --charcoal: #1a1a1a; --gold: #C4A35A;
-      --grey: #D4CFC4; --glass: rgba(255,255,255,0.85);
-      --msg-user: #1a1a1a; --msg-ai: #fff;
+      --grey: #D4CFC4; --msg-user: #1a1a1a; --msg-ai: #fff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -35,20 +34,30 @@
     }
     #newChatBtn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.4); }
 
-    .conversation-list { flex: 1; overflow-y: auto; padding: 0.75rem; }
+    .conversation-list { flex: 1; overflow-y: auto; padding: 0.5rem 0.75rem; }
+    .date-group { margin-bottom: 0.75rem; }
+    .date-label {
+      font-size: 0.68rem; color: #666; text-transform: uppercase;
+      letter-spacing: 0.1em; padding: 0.5rem 0.65rem 0.25rem;
+      font-family: 'Oswald', sans-serif; font-weight: 400;
+    }
     .conv-item {
-      padding: 0.75rem 0.85rem; border-radius: 6px; cursor: pointer;
-      margin-bottom: 0.25rem; transition: background 0.15s;
+      padding: 0.65rem 0.75rem; border-radius: 6px; cursor: pointer;
+      margin-bottom: 1px; transition: background 0.15s;
       display: flex; justify-content: space-between; align-items: flex-start;
     }
     .conv-item:hover { background: rgba(255,255,255,0.06); }
     .conv-item.active { background: rgba(196,163,90,0.15); }
-    .conv-item .title { font-size: 0.85rem; line-height: 1.4; flex: 1; color: #ddd; }
+    .conv-item .info { flex: 1; min-width: 0; }
+    .conv-item .title {
+      font-size: 0.82rem; line-height: 1.35; color: #ddd;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .conv-item.active .title { color: #fff; }
-    .conv-item .meta { font-size: 0.7rem; color: #888; margin-top: 0.2rem; }
+    .conv-item .preview { font-size: 0.72rem; color: #777; margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .conv-item .delete-btn {
       background: none; border: none; color: #666; cursor: pointer;
-      font-size: 1rem; padding: 0 0 0 0.5rem; opacity: 0; transition: opacity 0.15s;
+      font-size: 1rem; padding: 0 0 0 0.5rem; opacity: 0; transition: opacity 0.15s; flex-shrink: 0;
     }
     .conv-item:hover .delete-btn { opacity: 0.6; }
     .conv-item .delete-btn:hover { opacity: 1; color: #e88; }
@@ -76,68 +85,91 @@
       font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.1rem;
       color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .chat-header .wiki-link {
+    .header-actions { display: flex; align-items: center; gap: 1rem; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #4caf50; flex-shrink: 0; }
+    .status-dot.offline { background: #ccc; }
+    .wiki-link {
       font-size: 0.8rem; color: #999; text-decoration: none;
       font-family: 'Oswald', sans-serif; font-weight: 400;
       text-transform: uppercase; letter-spacing: 0.06em;
     }
-    .chat-header .wiki-link:hover { color: var(--charcoal); }
+    .wiki-link:hover { color: var(--charcoal); }
 
+    /* Messages */
     .messages {
       flex: 1; overflow-y: auto; padding: 1.5rem;
-      display: flex; flex-direction: column; gap: 1rem;
+      display: flex; flex-direction: column; gap: 0.85rem;
+      scroll-behavior: smooth;
     }
     .messages .empty-state {
-      text-align: center; padding: 3rem 1rem; color: #999;
-      margin: auto; max-width: 400px;
+      text-align: center; padding: 3rem 1rem; color: #999; margin: auto; max-width: 440px;
     }
     .empty-state h2 {
       font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.5rem;
       margin-bottom: 0.5rem; color: var(--charcoal);
     }
-    .empty-state p { font-size: 0.9rem; line-height: 1.6; }
+    .empty-state p { font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.25rem; }
+
+    /* Quick reply chips */
+    .quick-replies { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+    .quick-chip {
+      padding: 0.45rem 0.9rem; border-radius: 16px; cursor: pointer;
+      font-family: 'Lato', sans-serif; font-size: 0.82rem;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--grey);
+      color: var(--charcoal); transition: all 0.15s;
+    }
+    .quick-chip:hover { background: var(--charcoal); color: #fff; border-color: var(--charcoal); }
 
     /* Message bubbles */
     .message { display: flex; gap: 0.5rem; max-width: 80%; }
     .message.user { align-self: flex-end; flex-direction: row-reverse; }
     .message.assistant { align-self: flex-start; }
     .message .avatar {
-      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.8rem;
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 0.75rem;
     }
     .message.user .avatar { background: var(--charcoal); color: #fff; }
     .message.assistant .avatar { background: #fff; color: var(--charcoal); border: 1px solid var(--grey); }
     .message .bubble {
-      padding: 0.75rem 1.1rem; border-radius: 14px;
-      font-size: 0.9rem; line-height: 1.65;
+      padding: 0.7rem 1.05rem; border-radius: 16px;
+      font-size: 0.88rem; line-height: 1.6;
       background: var(--msg-ai); border: 1px solid rgba(0,0,0,0.06);
       box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
-    .message.user .bubble { background: var(--msg-user); color: #fff; border: none; }
-    .bubble h1 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.15rem; margin: 0.75rem 0 0.4rem; }
-    .bubble h2 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1rem; margin: 0.6rem 0 0.3rem; }
-    .bubble h3 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 0.9rem; margin: 0.5rem 0 0.2rem; }
-    .bubble p { margin-bottom: 0.6rem; }
+    .message.user .bubble {
+      background: var(--msg-user); color: #fff; border: none;
+      border-top-right-radius: 4px;
+    }
+    .message.assistant .bubble { border-top-left-radius: 4px; }
+    .bubble h1 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.1rem; margin: 0.75rem 0 0.4rem; }
+    .bubble h2 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 0.95rem; margin: 0.6rem 0 0.3rem; }
+    .bubble h3 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 0.88rem; margin: 0.5rem 0 0.2rem; }
+    .bubble p { margin-bottom: 0.5rem; }
     .bubble ul, .bubble ol { margin: 0.3rem 0 0.5rem 1.2rem; }
     .bubble strong { font-weight: 700; }
     .bubble em { font-style: italic; }
     .bubble code { background: rgba(0,0,0,0.06); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.88em; }
 
-    /* Sources */
-    .sources-bar {
-      margin-top: 0.75rem; padding-top: 0.5rem;
-      border-top: 1px solid rgba(0,0,0,0.05);
-      display: flex; flex-wrap: wrap; gap: 0.25rem;
+    /* Message footer */
+    .msg-footer {
+      display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem;
+      padding-top: 0.4rem; border-top: 1px solid rgba(0,0,0,0.05);
     }
+    .msg-sources { display: flex; flex-wrap: wrap; gap: 0.2rem; flex: 1; }
     .source-chip {
-      display: inline-block; padding: 0.15rem 0.5rem;
-      background: rgba(196,163,90,0.1); border: 1px solid rgba(196,163,90,0.15);
-      border-radius: 12px; font-size: 0.7rem; color: #8B7355;
+      padding: 0.12rem 0.45rem; border-radius: 10px; font-size: 0.66rem;
+      background: rgba(196,163,90,0.12); border: 1px solid rgba(196,163,90,0.2); color: #8B7355;
+      cursor: default;
     }
-    .message.user .source-chip { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); color: #ccc; }
+    .feedback-btn {
+      background: none; border: none; cursor: pointer; font-size: 0.85rem;
+      padding: 0.15rem 0.25rem; border-radius: 4px; opacity: 0.4; transition: all 0.15s;
+    }
+    .feedback-btn:hover { opacity: 1; background: rgba(0,0,0,0.04); }
+    .feedback-btn.active { opacity: 1; }
 
-    /* Typing indicator */
+    /* Typing */
     .typing { display: none; }
     .typing.visible { display: flex; align-items: center; gap: 0.5rem; padding-left: 1rem; }
     .typing .dots { display: flex; gap: 3px; }
@@ -149,23 +181,23 @@
     .typing .dots span:nth-child(3) { animation-delay: 0.3s; }
     @keyframes dotPulse { 0%, 60% { opacity: 0.3; } 30% { opacity: 1; } }
 
-    /* Input area */
+    /* Input */
     .input-area {
-      padding: 1rem 1.5rem; background: rgba(255,255,255,0.6);
+      padding: 0.75rem 1.5rem 1rem; background: rgba(255,255,255,0.6);
       backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
       border-top: 1px solid rgba(0,0,0,0.05);
-      display: flex; gap: 0.5rem; align-items: center;
     }
+    .input-row { display: flex; gap: 0.5rem; align-items: center; }
     .input-area input {
-      flex: 1; padding: 0.75rem 1rem; font-size: 0.95rem;
+      flex: 1; padding: 0.7rem 1rem; font-size: 0.9rem;
       border: 1px solid var(--grey); border-radius: 22px;
       background: #fff; font-family: 'Lato', sans-serif;
       outline: none; transition: border-color 0.2s, box-shadow 0.2s;
     }
     .input-area input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,163,90,0.1); }
-    .input-area input:disabled { opacity: 0.6; }
+    .input-area input:disabled { opacity: 0.5; cursor: not-allowed; }
     .input-area button {
-      width: 42px; height: 42px; border-radius: 50%; border: none;
+      width: 40px; height: 40px; border-radius: 50%; border: none;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; transition: all 0.2s;
     }
@@ -179,14 +211,12 @@
     #micBtn.recording { border-color: #8B2E2E; background: rgba(139,46,46,0.06); animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(139,46,46,0.3); } 50% { box-shadow: 0 0 0 8px rgba(139,46,46,0); } }
 
-    .mic-status { font-size: 0.75rem; color: #999; margin-right: 0.5rem; white-space: nowrap; }
+    .mic-status { font-size: 0.75rem; color: #999; white-space: nowrap; }
 
-    /* Mobile */
     @media (max-width: 768px) {
       .sidebar { position: fixed; left: -300px; top: 0; bottom: 0; z-index: 20; transition: left 0.25s; }
       .sidebar.open { left: 0; }
       .chat-header { padding: 0.6rem 1rem; }
-      .messages { padding: 1rem; }
       .message { max-width: 90%; }
       .message .avatar { width: 26px; height: 26px; font-size: 0.7rem; }
     }
@@ -206,42 +236,47 @@
     </div>
   </div>
 
-  <!-- Chat -->
+  <!-- Chat area -->
   <div class="chat-area">
     <div class="chat-header">
       <h1 id="chatTitle">Cider Institute</h1>
-      <a href="/vault/" class="wiki-link" target="_blank">Knowledge Wiki</a>
+      <div class="header-actions">
+        <span class="status-dot" id="statusDot" title="Connected"></span>
+        <a href="/vault/" class="wiki-link" target="_blank">Knowledge Wiki</a>
+      </div>
     </div>
 
     <div class="messages" id="messages">
       <div class="empty-state" id="emptyState">
         <h2>Ask a Cider Making Question</h2>
-        <p>Get answers from the Cider Institute's official course materials — with sources you can trust. Try: <em>"What pH should I target for fermentation?"</em></p>
+        <p>Get answers from the Cider Institute's official course materials — with sources you can trust.</p>
+        <div class="quick-replies">
+          <span class="quick-chip" data-q="What pH should I target for fermentation?">pH for fermentation</span>
+          <span class="quick-chip" data-q="How much SO₂ should I add before fermentation?">SO₂ dosage</span>
+          <span class="quick-chip" data-q="What causes hydrogen sulfide during fermentation?">H₂S causes</span>
+          <span class="quick-chip" data-q="How do I test for titratable acidity?">Titratable acidity</span>
+          <span class="quick-chip" data-q="How is perry production different from cider?">Perry vs cider</span>
+          <span class="quick-chip" data-q="What equipment do I need to start a cidery?">Cidery equipment</span>
+        </div>
       </div>
       <div class="typing" id="typing">
-        <div class="avatar" style="background:#fff;border:1px solid var(--grey);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">🍎</div>
+        <div class="avatar" style="background:#fff;border:1px solid var(--grey);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;">🍎</div>
         <div class="dots"><span></span><span></span><span></span></div>
       </div>
     </div>
 
     <div class="input-area">
-      <button id="micBtn" title="Voice input">🎤</button>
-      <span class="mic-status" id="micStatus"></span>
-      <input type="text" id="chatInput" placeholder="Ask a question..." autofocus>
-      <button id="sendBtn" title="Send">→</button>
+      <div class="input-row">
+        <button id="micBtn" title="Voice input">🎤</button>
+        <span class="mic-status" id="micStatus"></span>
+        <input type="text" id="chatInput" placeholder="Ask a question..." autofocus>
+        <button id="sendBtn" title="Send">→</button>
+      </div>
     </div>
   </div>
 
   <script>
-    // ── State ──
-    const state = {
-      conversations: [],
-      activeId: null,
-      messages: [],
-      sending: false
-    };
-
-    // ── DOM ──
+    const state = { conversations: [], activeId: null, messages: [], sending: false };
     const $ = (s) => document.querySelector(s);
     const messagesEl = $("#messages");
     const emptyState = $("#emptyState");
@@ -253,26 +288,68 @@
     const chatTitle = $("#chatTitle");
     const convList = $("#conversationList");
     const newChatBtn = $("#newChatBtn");
+    const statusDot = $("#statusDot");
 
-    // ── Render ──
+    let userScrolledUp = false;
+
+    // ── Auto-scroll intelligence ──
+    messagesEl.addEventListener("scroll", () => {
+      const dist = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+      userScrolledUp = dist > 80;
+    });
+
+    function scrollToBottom(force) {
+      if (force || !userScrolledUp) {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        userScrolledUp = false;
+      }
+    }
+
+    // ── Date grouping ──
+    const DATE_GROUPS = [
+      { key: "today", label: "Today", fn: (d) => isToday(d) },
+      { key: "yesterday", label: "Yesterday", fn: (d) => isYesterday(d) },
+      { key: "week", label: "This week", fn: (d) => diffDays(d) < 7 },
+      { key: "month", label: "This month", fn: (d) => diffDays(d) < 30 },
+      { key: "older", label: "Older", fn: () => true },
+    ];
+
+    function isToday(d) { return new Date(d).toDateString() === new Date().toDateString(); }
+    function isYesterday(d) { const y = new Date(); y.setDate(y.getDate() - 1); return new Date(d).toDateString() === y.toDateString(); }
+    function diffDays(d) { return (Date.now() - new Date(d).getTime()) / 86400000; }
+
+    function groupConversations(convs) {
+      const groups = new Map();
+      for (const g of DATE_GROUPS) groups.set(g.key, []);
+      for (const c of convs) {
+        for (const g of DATE_GROUPS) {
+          if (g.fn(c.updatedAt)) { groups.get(g.key).push(c); break; }
+        }
+      }
+      return [...groups.entries()].filter(([, items]) => items.length > 0);
+    }
+
     function renderConversationList() {
-      convList.innerHTML = state.conversations.map((c) => `
-        <div class="conv-item${c.id === state.activeId ? " active" : ""}" data-id="${c.id}">
-          <div>
-            <div class="title">${esc(c.title || "New conversation")}</div>
-            <div class="meta">${timeAgo(c.updatedAt)} · ${c.messageCount || 0} msgs</div>
-          </div>
-          <button class="delete-btn" data-delete="${c.id}" title="Delete">×</button>
-        </div>
-      `).join("");
+      const grouped = groupConversations(state.conversations);
+      convList.innerHTML = grouped.map(([key, items]) => {
+        const label = DATE_GROUPS.find((g) => g.key === key)?.label || key;
+        return `<div class="date-group">
+          <div class="date-label">${label}</div>
+          ${items.map((c) => `
+            <div class="conv-item${c.id === state.activeId ? " active" : ""}" data-id="${c.id}">
+              <div class="info">
+                <div class="title">${esc(c.title || "New conversation")}</div>
+                <div class="preview">${c.messageCount || 0} messages</div>
+              </div>
+              <button class="delete-btn" data-delete="${c.id}" title="Delete">×</button>
+            </div>
+          `).join("")}
+        </div>`;
+      }).join("");
 
-      // Click handlers
       convList.querySelectorAll(".conv-item").forEach((el) => {
         el.addEventListener("click", (e) => {
-          if (e.target.dataset.delete) {
-            deleteConversation(e.target.dataset.delete);
-            return;
-          }
+          if (e.target.dataset.delete) { deleteConversation(e.target.dataset.delete); return; }
           loadConversation(el.dataset.id);
         });
       });
@@ -288,72 +365,95 @@
         chatTitle.textContent = conv?.title || "New conversation";
       }
 
-      messagesEl.innerHTML = state.messages.map((m) => {
-        const isUser = m.role === "user";
-        const av = isUser ? "👤" : "🍎";
-        const body = renderMarkdown(m.content);
+      messagesEl.innerHTML = state.messages.map((m, i) => {
+        if (m.role === "user") {
+          return `<div class="message user">
+            <div class="avatar">👤</div>
+            <div class="bubble">${renderMarkdown(m.content)}</div>
+          </div>`;
+        }
+        // Assistant message
         const sources = m.sources?.length
-          ? `<div class="sources-bar">${m.sources.map((s) => `<span class="source-chip">${esc(s.title)}</span>`).join("")}</div>`
+          ? `<div class="msg-sources">${m.sources.map((s) => `<span class="source-chip" title="${esc(s.file)}">📄 ${esc(s.title)}</span>`).join("")}</div>`
           : "";
-        return `<div class="message ${m.role}">
-          <div class="avatar">${av}</div>
-          <div class="bubble">${body}${sources}</div>
+        const fb = m.feedback;
+        return `<div class="message assistant">
+          <div class="avatar">🍎</div>
+          <div class="bubble">${renderMarkdown(m.content)}
+            <div class="msg-footer">
+              ${sources}
+              <button class="feedback-btn${fb === "up" ? " active" : ""}" data-fb="up" data-msg="${i}" title="Helpful">👍</button>
+              <button class="feedback-btn${fb === "down" ? " active" : ""}" data-fb="down" data-msg="${i}" title="Not helpful">👎</button>
+            </div>
+          </div>
         </div>`;
       }).join("");
 
-      // Restore empty state + typing
       messagesEl.appendChild(emptyState);
       messagesEl.appendChild(typingEl);
 
-      // Scroll to bottom
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      // Feedback handlers
+      messagesEl.querySelectorAll(".feedback-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const idx = parseInt(btn.dataset.msg);
+          const fb = btn.dataset.fb;
+          const newFb = state.messages[idx].feedback === fb ? null : fb;
+          state.messages[idx].feedback = newFb;
+          renderMessages();
+          scrollToBottom(false);
+          // Persist to server
+          if (state.activeId) {
+            fetch(`/api/conversations/${state.activeId}/messages/${idx}/feedback`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ feedback: newFb }),
+            }).catch(() => {});
+          }
+        });
+      });
     }
 
     function showTyping(v) {
       typingEl.classList.toggle("visible", v);
-      if (v) messagesEl.scrollTop = messagesEl.scrollHeight;
+      if (v) scrollToBottom(true);
     }
 
     // ── API ──
     async function loadConversations() {
-      const res = await fetch("/api/conversations");
-      if (res.ok) {
-        state.conversations = await res.json();
-        renderConversationList();
-      }
+      try {
+        const res = await fetch("/api/conversations");
+        if (res.ok) { state.conversations = await res.json(); renderConversationList(); }
+      } catch {}
     }
 
     async function loadConversation(id) {
       state.activeId = id;
-      const res = await fetch(`/api/conversations/${id}`);
-      if (res.ok) {
-        const conv = await res.json();
-        state.messages = conv.messages || [];
-        renderMessages();
-        renderConversationList();
-      }
+      try {
+        const res = await fetch(`/api/conversations/${id}`);
+        if (res.ok) { const conv = await res.json(); state.messages = conv.messages || []; }
+      } catch {}
+      renderMessages();
+      renderConversationList();
+      scrollToBottom(true);
     }
 
     async function deleteConversation(id) {
       await fetch(`/api/conversations/${id}`, { method: "DELETE" });
-      if (state.activeId === id) {
-        state.activeId = null;
-        state.messages = [];
-        renderMessages();
-      }
+      if (state.activeId === id) { state.activeId = null; state.messages = []; renderMessages(); }
       await loadConversations();
     }
 
     async function sendMessage(question) {
       if (!question?.trim() || state.sending) return;
       state.sending = true;
-
-      // Add user message immediately
       state.messages.push({ role: "user", content: question });
       renderMessages();
       chatInput.value = "";
       sendBtn.disabled = true;
+      chatInput.disabled = true;
       showTyping(true);
+      userScrolledUp = false;
+      scrollToBottom(true);
 
       try {
         const res = await fetch("/api/ask", {
@@ -361,48 +461,55 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question, conversationId: state.activeId }),
         });
-
         if (!res.ok) throw new Error("Server error");
         const data = await res.json();
-
-        // Set active conversation
         state.activeId = data.conversationId;
-        if (!state.conversations.find((c) => c.id === data.conversationId)) {
-          await loadConversations();
-        }
-
-        // Add AI response
+        if (!state.conversations.find((c) => c.id === data.conversationId)) await loadConversations();
         state.messages.push({ role: "assistant", content: data.answer, sources: data.sources });
         renderMessages();
         renderConversationList();
-      } catch (err) {
+        scrollToBottom(true);
+      } catch {
         state.messages.push({ role: "assistant", content: "Something went wrong. Please try again." });
         renderMessages();
       } finally {
         showTyping(false);
         state.sending = false;
         sendBtn.disabled = false;
+        chatInput.disabled = false;
+        chatInput.focus();
       }
     }
 
+    // ── Quick reply chips ──
+    document.addEventListener("click", (e) => {
+      const chip = e.target.closest(".quick-chip");
+      if (chip) sendMessage(chip.dataset.q);
+    });
+
     // ── Voice ──
     let recognition = null;
-
     micBtn.addEventListener("click", () => {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) { micStatus.textContent = "Not supported"; return; }
-
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { micStatus.textContent = "Not supported"; return; }
       if (recognition) { recognition.stop(); recognition = null; micBtn.classList.remove("recording"); micStatus.textContent = ""; return; }
-
-      recognition = new SpeechRecognition();
+      recognition = new SR();
       recognition.lang = "en-US"; recognition.interimResults = false; recognition.continuous = false;
-
       recognition.onstart = () => { micBtn.classList.add("recording"); micStatus.textContent = "Listening..."; };
-      recognition.onresult = (e) => { sendMessage(e.results[0][0].transcript); };
+      recognition.onresult = (e) => sendMessage(e.results[0][0].transcript);
       recognition.onerror = () => { micBtn.classList.remove("recording"); micStatus.textContent = ""; recognition = null; };
       recognition.onend = () => { micBtn.classList.remove("recording"); micStatus.textContent = ""; recognition = null; };
       recognition.start();
     });
+
+    // ── Connection status ──
+    async function checkHealth() {
+      try {
+        const res = await fetch("/api/login", { method: "HEAD" });
+        statusDot.classList.toggle("offline", !res.ok);
+      } catch { statusDot.classList.add("offline"); }
+    }
+    checkHealth(); setInterval(checkHealth, 30000);
 
     // ── Events ──
     sendBtn.addEventListener("click", () => sendMessage(chatInput.value));
@@ -410,21 +517,7 @@
     newChatBtn.addEventListener("click", () => { state.activeId = null; state.messages = []; renderMessages(); renderConversationList(); chatInput.focus(); });
 
     // ── Helpers ──
-    function esc(s) {
-      if (!s) return "";
-      const div = document.createElement("div");
-      div.textContent = s;
-      return div.innerHTML;
-    }
-
-    function timeAgo(ts) {
-      if (!ts) return "";
-      const diff = (Date.now() - new Date(ts).getTime()) / 1000;
-      if (diff < 60) return "just now";
-      if (diff < 3600) return Math.floor(diff / 60) + "m ago";
-      if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
-      return Math.floor(diff / 86400) + "d ago";
-    }
+    function esc(s) { if (!s) return ""; const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 
     function renderMarkdown(text) {
       return text
@@ -439,11 +532,19 @@
         .replace(/^(.+)$/gm, (m) => m.startsWith("<") ? m : "<p>" + m + "</p>");
     }
 
-    // ── Init ──
-    loadConversations();
-    chatInput.focus();
+    function timeAgo(ts) {
+      if (!ts) return "";
+      const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+      if (diff < 60) return "just now";
+      if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+      return `${Math.floor(diff/86400)}d ago`;
+    }
 
-    // Mobile sidebar toggle
+    // ── Init ──
+    loadConversations(); chatInput.focus();
+
+    // Mobile sidebar
     if (window.innerWidth <= 768) {
       const toggle = document.createElement("button");
       toggle.textContent = "☰";

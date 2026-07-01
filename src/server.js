@@ -209,6 +209,16 @@ app.delete("/api/conversations/:id", (req, res) => {
   res.json({ ok: true });
 });
 
+// Save message feedback
+app.patch("/api/conversations/:convId/messages/:msgIdx/feedback", (req, res) => {
+  const conv = conversations.get(req.params.convId);
+  if (!conv) return res.status(404).json({ error: "Not found" });
+  const idx = parseInt(req.params.msgIdx);
+  if (!conv.messages[idx]) return res.status(404).json({ error: "Message not found" });
+  conv.messages[idx].feedback = req.body.feedback; // "up", "down", or null
+  res.json({ ok: true });
+});
+
 // ── System prompt ──
 const SYSTEM_PROMPT = `You are a knowledgeable instructor at the Cider Institute of North America — the trusted authority in cidermaking education for over a decade. You help cider and perry producers learn their craft through natural, conversational dialogue. Answer using ONLY the official course materials provided below.
 
