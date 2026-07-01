@@ -27,6 +27,25 @@ app.use(express.urlencoded({ extended: true }));
 // ── Vault path ──
 const VAULT_ROOT = path.join(ROOT, "vault");
 
+// ── Conversation store (in-memory, per-user) ──
+const conversations = new Map(); // id → { id, userId, title, messages[], createdAt, updatedAt }
+
+function getUserHash(req) {
+  // Use cookie token hash as user identifier
+  const token = req.cookies?.[COOKIE_NAME] || "anonymous";
+  return crypto.createHash("sha256").update(token).digest("hex").slice(0, 16);
+}
+
+function getUserConversations(userHash) {
+  const userConvs = [];
+  for (const [id, conv] of conversations) {
+    if (conv.userId === userHash) {
+      userConvs.push({ id: conv.id, title: conv.title, createdAt: conv.createdAt, updatedAt: conv.updatedAt, messageCount: conv.messages.length });
+    }
+  }
+  return userConvs.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+}
+
 // ── Auth: simple shared access code with signed cookie ──
 const COOKIE_NAME = "cider_token";
 const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString("hex");
@@ -161,38 +180,83 @@ app.use(express.static(path.join(ROOT, "public")));
 // ── Protected routes ──
 app.use(requireAuth);
 
+// ── Conversation API ──
+app.get("/api/conversations", (req, res) => {
+  const userHash = getUserHash(req);
+  res.json(getUserConversations(userHash));
+});
+
+app.get("/api/conversations/:id", (req, res) => {
+  const conv = conversations.get(req.params.id);
+  if (!conv) return res.status(404).json({ error: "Conversation not found" });
+  res.json(conv);
+});
+
+app.post("/api/conversations", (req, res) => {
+  const userHash = getUserHash(req);
+  const id = crypto.randomUUID();
+  const title = (req.body.title || "New conversation").slice(0, 120);
+  const now = new Date().toISOString();
+  const conv = { id, userId: userHash, title, messages: [], createdAt: now, updatedAt: now };
+  conversations.set(id, conv);
+  res.json({ id, title, createdAt: now });
+});
+
+app.delete("/api/conversations/:id", (req, res) => {
+  const conv = conversations.get(req.params.id);
+  if (!conv) return res.status(404).json({ error: "Not found" });
+  conversations.delete(req.params.id);
+  res.json({ ok: true });
+});
+
 // ── System prompt ──
-const SYSTEM_PROMPT = `You are a knowledgeable instructor at the Cider Institute of North America — the trusted authority in cidermaking education for over a decade. You help cider and perry producers learn their craft. Answer using ONLY the official course materials provided below.
+const SYSTEM_PROMPT = `You are a knowledgeable instructor at the Cider Institute of North America — the trusted authority in cidermaking education for over a decade. You help cider and perry producers learn their craft through natural, conversational dialogue. Answer using ONLY the official course materials provided below.
 
 YOUR TONE:
-Warm, encouraging, and precise — like a seasoned cidermaker mentoring an apprentice. You represent the Cider Institute's intellectual honesty and a decade of credibility.
+Warm, encouraging, and precise — like a seasoned cidermaker mentoring an apprentice over a cup of coffee. You represent the Cider Institute's intellectual honesty and a decade of credibility.
 
-CORE PRINCIPLE — ASK BEFORE YOU ANSWER:
-Cidermaking is both a science and an art. The best answer depends on context: the style of cider, the scale of the operation, the equipment available, and the cidermaker's goals.
+HOW CONVERSATIONS WORK — READ THIS CAREFULLY:
 
-HERE IS HOW YOU MUST HANDLE EVERY QUESTION:
+Cidermaking is both a science and an art. The best answer almost always depends on context. You and the cidermaker are having a conversation to figure out what applies to THEIR specific situation.
 
-**If the question could have different answers depending on context (which is most questions):**
-1. Briefly acknowledge the question and what's at stake
-2. Ask 2-4 specific, concise clarifying questions — the same ones a real mentor would ask
-3. Briefly explain WHY these questions matter for the answer
-4. Keep this to 3-5 sentences total. Be warm, not clinical
-5. End with a specific prompt like "Tell me a bit about these and I can give you a much more useful answer."
+**Step 1 — Look at the conversation history. Where are we in this dialogue?**
 
-The clarifying questions should be about: cider/perry style, batch size, equipment, yeast strategy, quality goals, current stage of production, or specific symptoms if troubleshooting.
+If your LAST message asked clarifying questions, AND the user's new message appears to answer them (even partially) → Go to Step 3 (give the specific answer). Do NOT ask more questions. They just answered you.
 
-**If the question is a straightforward factual lookup** (e.g., "What is malolactic fermentation?", "Define titratable acidity"):
-Answer directly with the science. Cite sources. Keep it concise.
+If this is a new topic or the first exchange → Go to Step 2.
 
-**When the user HAS provided enough context:**
-Give a specific, practical answer tailored to their situation. Don't re-explain all the variables — they already told you. Focus on what matters for THEM.
+**Step 2 — Ask clarifying questions (first turn only)**
 
-RULES:
+When you need context, do this:
+1. Warmly acknowledge the question in ONE sentence
+2. Ask 2-3 specific questions — numbered, easy to answer
+3. End with a natural prompt like "Tell me about your setup and I can give you targeted guidance."
+
+Example of a good first response:
+"Great question. pH targets really depend on what you're making and how. A few things would help me give you a useful answer: 1) What style of cider are you going for — dry, sweet, or something specific? 2) Roughly how big is your batch? 3) Are you using cultured yeast or going wild? Tell me about your setup and I can give you much more targeted guidance."
+
+Keep it warm. Never sound like a form or a checklist. This is a conversation between a mentor and an apprentice.
+
+**Step 3 — Give the specific answer (follow-up turns)**
+
+The cidermaker just told you about their situation. Now:
+1. Acknowledge what they shared ("A dry cider at 500L with cultured yeast — got it.")
+2. Give the specific, practical answer for THEIR situation
+3. Cite your sources: "Source: [Document Name], [Section]"
+4. If appropriate, add one practical tip or suggest a relevant lab test
+5. End with an open door: "Does that help? Or is there another aspect you're wondering about?"
+
+**Step 4 — Straight factual questions**
+
+If the question is purely definitional (e.g., "What is malolactic fermentation?"):
+Answer directly. Cite your source. Keep it concise. You can still ask "Would you like me to go deeper on how this applies to your cider?" to keep the conversation going.
+
+GOLDEN RULES:
 1. Answer ONLY from the provided documents. Never make up information.
-2. Every factual answer MUST cite its source: "Source: [Document Name], [Section]"
-3. If the documents don't contain the answer, say so honestly and suggest which course module might cover it.
-4. When relevant, mention specific lab tests the cidermaker can perform (from the Lab Testing manual).
-5. Never give a one-size-fits-all answer when nuance matters. The Cider Institute teaches cidermakers HOW to think, not WHAT to think.`;
+2. Every factual answer MUST cite its source.
+3. If the documents don't contain something, say: "I don't have enough in the course materials to answer that confidently." Suggest a module that might cover it.
+4. Never loop — if the user gave you context, USE IT. Don't ask again.
+5. Be conversational. This is a dialogue, not a Q&A terminal.`;
 
 // ── Vault Search (keyword + title match) ──
 async function searchVault(query) {
@@ -232,48 +296,67 @@ async function searchVault(query) {
 // ── POST /api/ask ──
 app.post("/api/ask", async (req, res) => {
   try {
-    const { question, history } = req.body;
+    const { question, conversationId } = req.body;
     if (!question?.trim()) {
       return res.status(400).json({ error: "question is required" });
     }
 
-    // Search vault for the full conversation context (last question + any context provided)
-    const searchQuery = history?.length
-      ? question + " " + history.map((h) => h.question + " " + (h.answer || "")).join(" ")
-      : question;
-    const pages = await searchVault(searchQuery);
-    const context = pages
-      .map((p) => `### ${p.title} (${p.file})\n${p.content}`)
-      .join("\n\n---\n\n");
+    const userHash = getUserHash(req);
 
-    // Build messages array with conversation history
-    const messages = [{ role: "system", content: SYSTEM_PROMPT }];
-
-    // Add previous exchanges as context
-    if (history?.length) {
-      for (const turn of history.slice(-3)) {
-        // Only include last 3 turns
-        if (turn.question) messages.push({ role: "user", content: turn.question });
-        if (turn.answer) messages.push({ role: "assistant", content: turn.answer });
-      }
+    // Get or create conversation
+    let conv;
+    if (conversationId && conversations.has(conversationId)) {
+      conv = conversations.get(conversationId);
+    } else {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      conv = { id, userId: userHash, title: question.slice(0, 120), messages: [], createdAt: now, updatedAt: now };
+      conversations.set(id, conv);
     }
 
-    // Add current question
-    messages.push({
+    // Build conversation context from stored messages
+    const recentMessages = conv.messages.slice(-8); // last 8 turns
+
+    // Search vault using the full conversation context
+    const searchQuery = question + " " + recentMessages.map((m) => m.content).join(" ");
+    const pages = await searchVault(searchQuery);
+    const vaultContext = pages.map((p) => `### ${p.title} (${p.file})\n${p.content}`).join("\n\n---\n\n");
+
+    // Build LLM messages: system + conversation history + vault + current question
+    const llmMessages = [{ role: "system", content: SYSTEM_PROMPT }];
+
+    // Add conversation history
+    for (const msg of recentMessages) {
+      llmMessages.push({ role: msg.role, content: msg.content });
+    }
+
+    // Add current question with vault context
+    llmMessages.push({
       role: "user",
-      content: `COURSE MATERIALS:\n\n${context || "No relevant materials found."}\n\n---\n\nQUESTION: ${question}\n\nAnswer as a Cider Institute instructor:`,
+      content: `COURSE MATERIALS:\n\n${vaultContext || "No relevant materials found."}\n\n---\n\nQUESTION: ${question}\n\nRemember the conversation flow: if you previously asked clarifying questions, check if I'm answering them now. If your last message asked questions and this message answers them, give me the specific guidance. If this is a new topic, ask clarifying questions if needed.`,
     });
 
     const completion = await deepseek.chat.completions.create({
       model: "deepseek-chat",
-      messages,
+      messages: llmMessages,
       temperature: 0.3,
       max_tokens: 1500,
     });
 
     const answer = completion.choices[0].message.content;
 
+    // Save messages to conversation
+    const now = new Date().toISOString();
+    conv.messages.push({ role: "user", content: question, timestamp: now });
+    conv.messages.push({ role: "assistant", content: answer, timestamp: now });
+    conv.updatedAt = now;
+    // Update title from first question if still default
+    if (conv.messages.length <= 2) {
+      conv.title = question.slice(0, 120);
+    }
+
     res.json({
+      conversationId: conv.id,
       answer,
       sources: pages.map((p) => ({ title: p.title, file: p.file })),
     });

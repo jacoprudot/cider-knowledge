@@ -9,315 +9,423 @@
   <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Oswald:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --cream: #F8F5F0;
-      --charcoal: #1a1a1a;
-      --warm-red: #8B2E2E;
-      --gold: #C4A35A;
-      --grey: #D4CFC4;
-      --glass-bg: rgba(255,255,255,0.85);
-      --glass-border: rgba(255,255,255,0.3);
+      --cream: #F8F5F0; --charcoal: #1a1a1a; --gold: #C4A35A;
+      --grey: #D4CFC4; --glass: rgba(255,255,255,0.85);
+      --msg-user: #1a1a1a; --msg-ai: #fff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Lato', sans-serif;
-      font-weight: 400;
+      font-family: 'Lato', sans-serif; font-weight: 400;
+      color: var(--charcoal); height: 100vh; display: flex; overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 300px; background: var(--charcoal); color: #fff;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .sidebar-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-header img { max-width: 150px; height: auto; filter: brightness(10); display: block; margin-bottom: 1rem; }
+    #newChatBtn {
+      width: 100%; padding: 0.6rem 1rem; margin-top: 0.75rem;
+      background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px; cursor: pointer; font-family: 'Lato', sans-serif;
+      font-size: 0.85rem; transition: all 0.2s;
+    }
+    #newChatBtn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.4); }
+
+    .conversation-list { flex: 1; overflow-y: auto; padding: 0.75rem; }
+    .conv-item {
+      padding: 0.75rem 0.85rem; border-radius: 6px; cursor: pointer;
+      margin-bottom: 0.25rem; transition: background 0.15s;
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .conv-item:hover { background: rgba(255,255,255,0.06); }
+    .conv-item.active { background: rgba(196,163,90,0.15); }
+    .conv-item .title { font-size: 0.85rem; line-height: 1.4; flex: 1; color: #ddd; }
+    .conv-item.active .title { color: #fff; }
+    .conv-item .meta { font-size: 0.7rem; color: #888; margin-top: 0.2rem; }
+    .conv-item .delete-btn {
+      background: none; border: none; color: #666; cursor: pointer;
+      font-size: 1rem; padding: 0 0 0 0.5rem; opacity: 0; transition: opacity 0.15s;
+    }
+    .conv-item:hover .delete-btn { opacity: 0.6; }
+    .conv-item .delete-btn:hover { opacity: 1; color: #e88; }
+
+    .sidebar-footer {
+      padding: 0.75rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; gap: 0.75rem; font-size: 0.75rem;
+    }
+    .sidebar-footer a { color: #999; text-decoration: none; }
+    .sidebar-footer a:hover { color: #fff; }
+
+    /* ── Main chat area ── */
+    .chat-area {
+      flex: 1; display: flex; flex-direction: column;
       background: linear-gradient(135deg, #f5f0e8 0%, #ede4d3 40%, #e8dfc8 100%);
-      color: var(--charcoal);
-      min-height: 100vh;
+      min-width: 0;
     }
-
-    /* Header — dark bar with white logo */
-    header {
-      width: 100%;
-      padding: 1rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--charcoal);
-      position: sticky;
-      top: 0;
-      z-index: 10;
+    .chat-header {
+      padding: 0.75rem 1.5rem; background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      display: flex; align-items: center; justify-content: space-between;
     }
-    header .logo img { height: 28px; width: auto; display: block; }
-    header nav a {
-      color: #ccc; text-decoration: none; margin-left: 2rem;
+    .chat-header h1 {
+      font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.1rem;
+      color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .chat-header .wiki-link {
+      font-size: 0.8rem; color: #999; text-decoration: none;
       font-family: 'Oswald', sans-serif; font-weight: 400;
-      font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase;
-      transition: color 0.2s;
+      text-transform: uppercase; letter-spacing: 0.06em;
     }
-    header nav a:hover { color: #fff; }
+    .chat-header .wiki-link:hover { color: var(--charcoal); }
 
-    /* Hero */
-    .container { width: 100%; max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem; }
-    .hero { text-align: center; margin-bottom: 2rem; }
-    .hero h1 {
-      font-family: 'Oswald', sans-serif; font-weight: 400;
-      font-size: 2.2rem; color: var(--charcoal); margin-bottom: 0.5rem;
+    .messages {
+      flex: 1; overflow-y: auto; padding: 1.5rem;
+      display: flex; flex-direction: column; gap: 1rem;
     }
-    .hero p { font-size: 1.05rem; color: #666; max-width: 500px; margin: 0 auto; line-height: 1.6; }
+    .messages .empty-state {
+      text-align: center; padding: 3rem 1rem; color: #999;
+      margin: auto; max-width: 400px;
+    }
+    .empty-state h2 {
+      font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.5rem;
+      margin-bottom: 0.5rem; color: var(--charcoal);
+    }
+    .empty-state p { font-size: 0.9rem; line-height: 1.6; }
 
-    /* Search */
-    .search-area { margin-bottom: 1.5rem; }
-    .search-row { display: flex; gap: 0.5rem; align-items: center; }
-    #question {
-      flex: 1; padding: 0.9rem 1.2rem; font-size: 1rem;
-      border: 1px solid var(--grey); border-radius: 6px;
-      background: var(--glass-bg); backdrop-filter: blur(12px);
-      font-family: 'Lato', sans-serif; outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
+    /* Message bubbles */
+    .message { display: flex; gap: 0.5rem; max-width: 80%; }
+    .message.user { align-self: flex-end; flex-direction: row-reverse; }
+    .message.assistant { align-self: flex-start; }
+    .message .avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem;
     }
-    #question:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,163,90,0.15); }
-    #askBtn {
-      padding: 0.9rem 1.5rem; font-size: 0.9rem; font-weight: 700;
-      background: var(--charcoal); color: #fff; border: none;
-      border-radius: 6px; cursor: pointer; transition: background 0.2s;
-      font-family: 'Lato', sans-serif; text-transform: uppercase; letter-spacing: 0.05em;
+    .message.user .avatar { background: var(--charcoal); color: #fff; }
+    .message.assistant .avatar { background: #fff; color: var(--charcoal); border: 1px solid var(--grey); }
+    .message .bubble {
+      padding: 0.75rem 1.1rem; border-radius: 14px;
+      font-size: 0.9rem; line-height: 1.65;
+      background: var(--msg-ai); border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
-    #askBtn:hover { background: #333; }
-    #askBtn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* Voice */
-    .voice-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
-    #micBtn {
-      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--grey);
-      background: var(--glass-bg); cursor: pointer; display: flex; align-items: center;
-      justify-content: center; transition: all 0.2s; flex-shrink: 0;
-    }
-    #micBtn:hover { border-color: var(--charcoal); }
-    #micBtn.recording { border-color: var(--warm-red); background: rgba(139,46,46,0.08); animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(139,46,46,0.3); } 50% { box-shadow: 0 0 0 8px rgba(139,46,46,0); } }
-    #micStatus { font-size: 0.8rem; color: #999; font-family: 'Lato', sans-serif; }
-    #speakBtn {
-      background: none; border: 1px solid var(--grey); padding: 0.4rem 0.9rem;
-      border-radius: 6px; cursor: pointer; font-family: 'Lato', sans-serif; font-size: 0.8rem;
-      color: var(--charcoal); transition: all 0.2s;
-    }
-    #speakBtn:hover { border-color: var(--charcoal); background: var(--glass-bg); }
-    #speakBtn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* Conversation status */
-    .conv-status {
-      text-align: center; margin-bottom: 0.75rem;
-      font-size: 0.8rem; color: #999; font-family: 'Lato', sans-serif;
-    }
-    #newConvBtn { color: var(--warm-red); cursor: pointer; }
-    #newConvBtn:hover { text-decoration: underline; }
-
-    .hint { font-size: 0.85rem; color: #aaa; margin-bottom: 2rem; text-align: center; }
-
-    /* Answer card — glass effect */
-    .answer-card {
-      background: var(--glass-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--glass-border);
-      border-radius: 10px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      display: none;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.04);
-    }
-    .answer-card.visible { display: block; }
-    .answer-text {
-      line-height: 1.7;
-      font-size: 1rem;
-      font-family: 'Lato', sans-serif;
-    }
-    .answer-text h1 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.4rem; margin: 1.5rem 0 0.75rem; color: var(--charcoal); }
-    .answer-text h2 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.15rem; margin: 1.25rem 0 0.5rem; color: var(--charcoal); }
-    .answer-text h3 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1rem; margin: 1rem 0 0.4rem; }
-    .answer-text p { margin-bottom: 0.85rem; }
-    .answer-text ul, .answer-text ol { margin: 0.5rem 0 1rem 1.5rem; line-height: 1.7; }
-    .answer-text strong { font-weight: 700; }
-    .answer-text em { font-style: italic; }
+    .message.user .bubble { background: var(--msg-user); color: #fff; border: none; }
+    .bubble h1 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.15rem; margin: 0.75rem 0 0.4rem; }
+    .bubble h2 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1rem; margin: 0.6rem 0 0.3rem; }
+    .bubble h3 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 0.9rem; margin: 0.5rem 0 0.2rem; }
+    .bubble p { margin-bottom: 0.6rem; }
+    .bubble ul, .bubble ol { margin: 0.3rem 0 0.5rem 1.2rem; }
+    .bubble strong { font-weight: 700; }
+    .bubble em { font-style: italic; }
+    .bubble code { background: rgba(0,0,0,0.06); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.88em; }
 
     /* Sources */
-    .sources { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--grey); }
-    .sources h3 {
-      font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 0.8rem;
-      color: #999; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.06em;
+    .sources-bar {
+      margin-top: 0.75rem; padding-top: 0.5rem;
+      border-top: 1px solid rgba(0,0,0,0.05);
+      display: flex; flex-wrap: wrap; gap: 0.25rem;
     }
     .source-chip {
-      display: inline-block; padding: 0.25rem 0.7rem; margin: 0.15rem 0.25rem 0.15rem 0;
-      background: rgba(196,163,90,0.12); border: 1px solid rgba(196,163,90,0.2);
-      border-radius: 20px; font-size: 0.75rem; color: #8B7355;
-      font-family: 'Lato', sans-serif;
+      display: inline-block; padding: 0.15rem 0.5rem;
+      background: rgba(196,163,90,0.1); border: 1px solid rgba(196,163,90,0.15);
+      border-radius: 12px; font-size: 0.7rem; color: #8B7355;
     }
+    .message.user .source-chip { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); color: #ccc; }
 
-    /* Loading */
-    .loading { text-align: center; padding: 2rem; display: none; }
-    .loading.visible { display: block; }
-    .spinner { width: 24px; height: 24px; border: 2px solid var(--grey); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 0.5rem; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading p { color: #999; font-size: 0.85rem; font-family: 'Lato', sans-serif; }
-
-    .error-card {
-      background: rgba(139,46,46,0.06); border: 1px solid rgba(139,46,46,0.2);
-      padding: 0.85rem 1.25rem; border-radius: 8px; color: var(--warm-red);
-      margin-bottom: 1.5rem; display: none; font-size: 0.9rem;
+    /* Typing indicator */
+    .typing { display: none; }
+    .typing.visible { display: flex; align-items: center; gap: 0.5rem; padding-left: 1rem; }
+    .typing .dots { display: flex; gap: 3px; }
+    .typing .dots span {
+      width: 6px; height: 6px; border-radius: 50%; background: #ccc;
+      animation: dotPulse 1.2s infinite;
     }
-    .error-card.visible { display: block; }
+    .typing .dots span:nth-child(2) { animation-delay: 0.15s; }
+    .typing .dots span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes dotPulse { 0%, 60% { opacity: 0.3; } 30% { opacity: 1; } }
 
-    /* Footer */
-    footer {
-      margin-top: auto; padding: 2rem; text-align: center;
-      font-size: 0.8rem; color: #aaa; width: 100%;
-      font-family: 'Lato', sans-serif;
+    /* Input area */
+    .input-area {
+      padding: 1rem 1.5rem; background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(0,0,0,0.05);
+      display: flex; gap: 0.5rem; align-items: center;
     }
-    footer a { color: #999; }
+    .input-area input {
+      flex: 1; padding: 0.75rem 1rem; font-size: 0.95rem;
+      border: 1px solid var(--grey); border-radius: 22px;
+      background: #fff; font-family: 'Lato', sans-serif;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-area input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,163,90,0.1); }
+    .input-area input:disabled { opacity: 0.6; }
+    .input-area button {
+      width: 42px; height: 42px; border-radius: 50%; border: none;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all 0.2s;
+    }
+    #sendBtn { background: var(--charcoal); color: #fff; }
+    #sendBtn:hover { background: #333; }
+    #sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #micBtn {
+      background: #fff; border: 1px solid var(--grey); color: var(--charcoal);
+    }
+    #micBtn:hover { border-color: var(--charcoal); }
+    #micBtn.recording { border-color: #8B2E2E; background: rgba(139,46,46,0.06); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(139,46,46,0.3); } 50% { box-shadow: 0 0 0 8px rgba(139,46,46,0); } }
 
-    @media (max-width: 600px) {
-      .hero h1 { font-size: 1.6rem; }
-      header { padding: 0.75rem 1rem; }
-      header nav a { margin-left: 1rem; font-size: 0.7rem; }
+    .mic-status { font-size: 0.75rem; color: #999; margin-right: 0.5rem; white-space: nowrap; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; left: -300px; top: 0; bottom: 0; z-index: 20; transition: left 0.25s; }
+      .sidebar.open { left: 0; }
+      .chat-header { padding: 0.6rem 1rem; }
+      .messages { padding: 1rem; }
+      .message { max-width: 90%; }
+      .message .avatar { width: 26px; height: 26px; font-size: 0.7rem; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <a href="/" class="logo"><img src="/logo.png" alt="Cider Institute of North America"></a>
-    <nav>
-      <a href="/vault/">Knowledge Wiki</a>
-    </nav>
-  </header>
-
-  <div class="container">
-    <div class="hero">
-      <h1>Ask a Cider Making Question</h1>
-      <p>Get answers backed by the Cider Institute's official course materials — with sources you can trust.</p>
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <img src="/logo.png" alt="Cider Institute">
+      <button id="newChatBtn">+ New conversation</button>
     </div>
-
-    <div class="search-area">
-      <div class="voice-row">
-        <button id="micBtn" title="Ask with voice">
-          <svg id="micIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3Z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="22"/>
-          </svg>
-        </button>
-        <span id="micStatus"></span>
-        <button id="speakBtn" disabled title="Read answer aloud">🔊 Listen</button>
-      </div>
-      <div class="search-row">
-        <input type="text" id="question" placeholder="e.g., What pH should I target before fermentation?" autofocus>
-        <button id="askBtn">Ask</button>
-      </div>
-    </div>
-
-    <p class="hint" id="hint">Try: How much SO₂ should I add? · What causes H₂S in fermentation? · How do I test for volatile acidity?</p>
-    <div class="conv-status" id="convStatus" style="display:none;">
-      <span>💬 Continuing conversation</span>
-      <button id="newConvBtn">(New topic)</button>
-    </div>
-
-    <div class="error-card" id="errorCard"></div>
-    <div class="loading" id="loading">
-      <div class="spinner"></div>
-      <p>Searching the knowledge library...</p>
-    </div>
-    <div class="answer-card" id="answerCard">
-      <div class="answer-text" id="answerText"></div>
-      <div class="sources" id="sources"></div>
+    <div class="conversation-list" id="conversationList"></div>
+    <div class="sidebar-footer">
+      <a href="/vault/" target="_blank">Knowledge Wiki ↗</a>
+      <a href="/api/logout">Log out</a>
     </div>
   </div>
 
-  <footer>
-    Powered by the <a href="https://www.ciderinstitute.com/">Cider Institute of North America</a> course materials
-  </footer>
+  <!-- Chat -->
+  <div class="chat-area">
+    <div class="chat-header">
+      <h1 id="chatTitle">Cider Institute</h1>
+      <a href="/vault/" class="wiki-link" target="_blank">Knowledge Wiki</a>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="empty-state" id="emptyState">
+        <h2>Ask a Cider Making Question</h2>
+        <p>Get answers from the Cider Institute's official course materials — with sources you can trust. Try: <em>"What pH should I target for fermentation?"</em></p>
+      </div>
+      <div class="typing" id="typing">
+        <div class="avatar" style="background:#fff;border:1px solid var(--grey);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">🍎</div>
+        <div class="dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <button id="micBtn" title="Voice input">🎤</button>
+      <span class="mic-status" id="micStatus"></span>
+      <input type="text" id="chatInput" placeholder="Ask a question..." autofocus>
+      <button id="sendBtn" title="Send">→</button>
+    </div>
+  </div>
 
   <script>
-    const questionInput = document.getElementById("question");
-    const askBtn = document.getElementById("askBtn");
-    const micBtn = document.getElementById("micBtn");
-    const micStatus = document.getElementById("micStatus");
-    const speakBtn = document.getElementById("speakBtn");
-    const answerCard = document.getElementById("answerCard");
-    const answerText = document.getElementById("answerText");
-    const sourcesDiv = document.getElementById("sources");
-    const loading = document.getElementById("loading");
-    const errorCard = document.getElementById("errorCard");
+    // ── State ──
+    const state = {
+      conversations: [],
+      activeId: null,
+      messages: [],
+      sending: false
+    };
 
-    let lastAnswer = "";
-    let conversationHistory = [];
-    const convStatus = document.getElementById("convStatus");
-    const newConvBtn = document.getElementById("newConvBtn");
-    const hintText = document.getElementById("hint");
+    // ── DOM ──
+    const $ = (s) => document.querySelector(s);
+    const messagesEl = $("#messages");
+    const emptyState = $("#emptyState");
+    const typingEl = $("#typing");
+    const chatInput = $("#chatInput");
+    const sendBtn = $("#sendBtn");
+    const micBtn = $("#micBtn");
+    const micStatus = $("#micStatus");
+    const chatTitle = $("#chatTitle");
+    const convList = $("#conversationList");
+    const newChatBtn = $("#newChatBtn");
 
-    newConvBtn.addEventListener("click", () => {
-      conversationHistory = [];
-      convStatus.style.display = "none";
-      hintText.style.display = "";
-      questionInput.value = "";
-      answerCard.classList.remove("visible");
-      lastAnswer = "";
-    });
+    // ── Render ──
+    function renderConversationList() {
+      convList.innerHTML = state.conversations.map((c) => `
+        <div class="conv-item${c.id === state.activeId ? " active" : ""}" data-id="${c.id}">
+          <div>
+            <div class="title">${esc(c.title || "New conversation")}</div>
+            <div class="meta">${timeAgo(c.updatedAt)} · ${c.messageCount || 0} msgs</div>
+          </div>
+          <button class="delete-btn" data-delete="${c.id}" title="Delete">×</button>
+        </div>
+      `).join("");
 
-    function updateConvStatus() {
-      if (conversationHistory.length > 0) {
-        convStatus.style.display = "block";
-        hintText.style.display = "none";
+      // Click handlers
+      convList.querySelectorAll(".conv-item").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          if (e.target.dataset.delete) {
+            deleteConversation(e.target.dataset.delete);
+            return;
+          }
+          loadConversation(el.dataset.id);
+        });
+      });
+    }
+
+    function renderMessages() {
+      if (state.messages.length === 0) {
+        emptyState.style.display = "";
+        chatTitle.textContent = "Cider Institute";
+      } else {
+        emptyState.style.display = "none";
+        const conv = state.conversations.find((c) => c.id === state.activeId);
+        chatTitle.textContent = conv?.title || "New conversation";
+      }
+
+      messagesEl.innerHTML = state.messages.map((m) => {
+        const isUser = m.role === "user";
+        const av = isUser ? "👤" : "🍎";
+        const body = renderMarkdown(m.content);
+        const sources = m.sources?.length
+          ? `<div class="sources-bar">${m.sources.map((s) => `<span class="source-chip">${esc(s.title)}</span>`).join("")}</div>`
+          : "";
+        return `<div class="message ${m.role}">
+          <div class="avatar">${av}</div>
+          <div class="bubble">${body}${sources}</div>
+        </div>`;
+      }).join("");
+
+      // Restore empty state + typing
+      messagesEl.appendChild(emptyState);
+      messagesEl.appendChild(typingEl);
+
+      // Scroll to bottom
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function showTyping(v) {
+      typingEl.classList.toggle("visible", v);
+      if (v) messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // ── API ──
+    async function loadConversations() {
+      const res = await fetch("/api/conversations");
+      if (res.ok) {
+        state.conversations = await res.json();
+        renderConversationList();
       }
     }
 
-    let mediaRecorder = null;
-    let chunks = [];
-    let recording = false;
+    async function loadConversation(id) {
+      state.activeId = id;
+      const res = await fetch(`/api/conversations/${id}`);
+      if (res.ok) {
+        const conv = await res.json();
+        state.messages = conv.messages || [];
+        renderMessages();
+        renderConversationList();
+      }
+    }
 
-    // ── Text Q&A ──
-    async function ask(question) {
-      if (!question.trim()) return;
+    async function deleteConversation(id) {
+      await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+      if (state.activeId === id) {
+        state.activeId = null;
+        state.messages = [];
+        renderMessages();
+      }
+      await loadConversations();
+    }
 
-      answerCard.classList.remove("visible");
-      errorCard.classList.remove("visible");
-      loading.classList.add("visible");
-      askBtn.disabled = true;
+    async function sendMessage(question) {
+      if (!question?.trim() || state.sending) return;
+      state.sending = true;
+
+      // Add user message immediately
+      state.messages.push({ role: "user", content: question });
+      renderMessages();
+      chatInput.value = "";
+      sendBtn.disabled = true;
+      showTyping(true);
 
       try {
         const res = await fetch("/api/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question,
-            history: conversationHistory.slice(-4),
-          }),
+          body: JSON.stringify({ question, conversationId: state.activeId }),
         });
 
         if (!res.ok) throw new Error("Server error");
-
         const data = await res.json();
-        answerText.innerHTML = renderMarkdown(data.answer);
-        lastAnswer = data.answer;
-        speakBtn.disabled = false;
 
-        conversationHistory.push({ question, answer: data.answer });
-        if (conversationHistory.length > 10) conversationHistory.shift();
-        updateConvStatus();
-
-        if (data.sources?.length) {
-          sourcesDiv.innerHTML = "<h3>Sources</h3>" +
-            data.sources.map(s => `<span class="source-chip">${s.title}</span>`).join("");
-        } else {
-          sourcesDiv.innerHTML = "";
+        // Set active conversation
+        state.activeId = data.conversationId;
+        if (!state.conversations.find((c) => c.id === data.conversationId)) {
+          await loadConversations();
         }
 
-        answerCard.classList.add("visible");
+        // Add AI response
+        state.messages.push({ role: "assistant", content: data.answer, sources: data.sources });
+        renderMessages();
+        renderConversationList();
       } catch (err) {
-        errorCard.textContent = "Something went wrong. Please try again.";
-        errorCard.classList.add("visible");
+        state.messages.push({ role: "assistant", content: "Something went wrong. Please try again." });
+        renderMessages();
       } finally {
-        loading.classList.remove("visible");
-        askBtn.disabled = false;
+        showTyping(false);
+        state.sending = false;
+        sendBtn.disabled = false;
       }
     }
 
-    askBtn.addEventListener("click", () => ask(questionInput.value));
-    questionInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") ask(questionInput.value);
+    // ── Voice ──
+    let recognition = null;
+
+    micBtn.addEventListener("click", () => {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) { micStatus.textContent = "Not supported"; return; }
+
+      if (recognition) { recognition.stop(); recognition = null; micBtn.classList.remove("recording"); micStatus.textContent = ""; return; }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US"; recognition.interimResults = false; recognition.continuous = false;
+
+      recognition.onstart = () => { micBtn.classList.add("recording"); micStatus.textContent = "Listening..."; };
+      recognition.onresult = (e) => { sendMessage(e.results[0][0].transcript); };
+      recognition.onerror = () => { micBtn.classList.remove("recording"); micStatus.textContent = ""; recognition = null; };
+      recognition.onend = () => { micBtn.classList.remove("recording"); micStatus.textContent = ""; recognition = null; };
+      recognition.start();
     });
 
-    // ── Simple markdown renderer ──
+    // ── Events ──
+    sendBtn.addEventListener("click", () => sendMessage(chatInput.value));
+    chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(chatInput.value); });
+    newChatBtn.addEventListener("click", () => { state.activeId = null; state.messages = []; renderMessages(); renderConversationList(); chatInput.focus(); });
+
+    // ── Helpers ──
+    function esc(s) {
+      if (!s) return "";
+      const div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    function timeAgo(ts) {
+      if (!ts) return "";
+      const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+      if (diff < 60) return "just now";
+      if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+      if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+      return Math.floor(diff / 86400) + "d ago";
+    }
+
     function renderMarkdown(text) {
       return text
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -331,73 +439,19 @@
         .replace(/^(.+)$/gm, (m) => m.startsWith("<") ? m : "<p>" + m + "</p>");
     }
 
-    // ── Voice Recording (browser-native SpeechRecognition) ──
-    let recognition = null;
-    let recognizing = false;
+    // ── Init ──
+    loadConversations();
+    chatInput.focus();
 
-    micBtn.addEventListener("click", () => {
-      if (recognizing) {
-        recognition?.stop();
-        return;
-      }
-
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        micStatus.textContent = "Speech recognition not supported";
-        return;
-      }
-
-      recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognition.continuous = false;
-
-      recognition.onstart = () => {
-        recognizing = true;
-        micBtn.classList.add("recording");
-        micStatus.textContent = "Listening...";
-      };
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        questionInput.value = transcript;
-        micStatus.textContent = "✓ Got it";
-        ask(transcript);
-        setTimeout(() => { micStatus.textContent = ""; }, 2000);
-      };
-
-      recognition.onerror = (event) => {
-        recognizing = false;
-        micBtn.classList.remove("recording");
-        if (event.error === "not-allowed") micStatus.textContent = "Microphone access denied";
-        else if (event.error === "no-speech") micStatus.textContent = "No speech detected";
-        else micStatus.textContent = "";
-      };
-
-      recognition.onend = () => {
-        recognizing = false;
-        micBtn.classList.remove("recording");
-      };
-
-      recognition.start();
-    });
-
-    // ── Voice Output (TTS) ──
-    speakBtn.addEventListener("click", () => {
-      if (!lastAnswer) return;
-      if (speechSynthesis.speaking) {
-        speechSynthesis.cancel();
-        speakBtn.textContent = "🔊 Listen";
-        return;
-      }
-      const utterance = new SpeechSynthesisUtterance(lastAnswer.replace(/\*|#|\[.*?\]\(.*?\)/g, ""));
-      utterance.lang = "en-US";
-      utterance.rate = 0.95;
-      utterance.onstart = () => { speakBtn.textContent = "⏹ Stop"; };
-      utterance.onend = () => { speakBtn.textContent = "🔊 Listen"; };
-      speechSynthesis.speak(utterance);
-    });
+    // Mobile sidebar toggle
+    if (window.innerWidth <= 768) {
+      const toggle = document.createElement("button");
+      toggle.textContent = "☰";
+      toggle.style.cssText = "position:absolute;left:0.5rem;top:0.5rem;z-index:25;background:var(--charcoal);color:#fff;border:none;width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1rem;";
+      toggle.addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+      $(".chat-header").prepend(toggle);
+      $(".chat-header").style.paddingLeft = "3rem";
+    }
   </script>
 </body>
 </html>
