@@ -372,6 +372,7 @@ const CHUNK_OVERLAP = 500;
 function filterTerms(query) {
   return query
     .toLowerCase()
+    .replace(/[?.,!;:'"()]+/g, "")  // strip punctuation
     .split(/\s+/)
     .filter((t) => t.length > 1 && !STOP_WORDS.has(t));
 }
@@ -433,10 +434,12 @@ async function searchVault(query) {
           let pos = 0;
           while (pos < content.length) {
             const chunk = content.slice(pos, pos + CHUNK_SIZE);
-            // Score this chunk specifically
+            // Score this chunk (normalized per 1000 chars, same as non-chunked)
             const chunkLower = chunk.toLowerCase();
             const chunkScore = terms.reduce((s, t) => {
-              return s + (chunkLower.split(t).length - 1);
+              if (t.length < 2) return s;
+              const count = chunkLower.split(t).length - 1;
+              return s + (count * 1000) / CHUNK_SIZE;
             }, 0);
             if (chunkScore > 0) {
               chunks.push({ text: chunk, score: chunkScore });
