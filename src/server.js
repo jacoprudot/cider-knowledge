@@ -368,6 +368,11 @@ function filterTerms(query) {
     .filter((t) => t.length > 1 && !STOP_WORDS.has(t));
 }
 
+// Technical cider/perry short terms — never filter these (pH, SO2, TA, SG, etc.)
+const TECH_TERMS = new Set(["ph", "so2", "ta", "sg", "mlf", "tv", "va", "co2", "h2s", "o2"]);
+// Add tech terms to the stop word removal — but KEEP them
+for (const t of TECH_TERMS) STOP_WORDS.delete(t);
+
 async function searchVault(query) {
   const results = [];
   const terms = filterTerms(query);
@@ -391,7 +396,7 @@ async function searchVault(query) {
 
         // Massive bonus for key term matches in title (title should dominate search ranking)
         for (const t of terms) {
-          if (t.length < 3) continue;
+          if (t.length < 2) continue;
           if (titleLower.includes(t)) {
             titleScore += 200; // +200 per key term in title
           }
@@ -404,7 +409,7 @@ async function searchVault(query) {
         const contentLower = content.toLowerCase();
         const docLen = Math.max(content.length, 1000);
         let contentScore = terms.reduce((s, t) => {
-          if (t.length < 3) return s;
+          if (t.length < 2) return s;
           const count = contentLower.split(t).length - 1;
           return s + (count * 1000) / docLen;
         }, 0);
