@@ -513,7 +513,7 @@ app.get("/vault/*", async (req, res) => {
     }
 
     const md = await fs.readFile(resolved, "utf-8");
-    const html = marked.parse(md);
+    const html = addWikilinks(marked.parse(md));
     res.type("html").send(renderWikiPage(relativePath.replace(".md", ""), html));
   } catch (err) {
     console.error("/vault error:", err);
@@ -732,6 +732,8 @@ function renderWikiPage(currentPath, content) {
     main p { line-height: 1.75; margin-bottom: 1rem; font-size: 0.95rem; }
     main ul, main ol { margin: 0.5rem 0 1rem 1.5rem; line-height: 1.75; font-size: 0.95rem; }
     main a { color: #8B2E2E; }
+    .wikilink { border-bottom: 1px dashed rgba(139,46,46,0.3); text-decoration: none; }
+    .wikilink:hover { border-bottom-color: #8B2E2E; }
     main blockquote {
       border-left: 3px solid var(--gold); padding: 0.5rem 1rem; margin: 1rem 0;
       background: rgba(196,163,90,0.08); font-style: italic; font-size: 0.9rem;
@@ -775,12 +777,59 @@ function renderWikiPage(currentPath, content) {
 </html>`;
 }
 
+// ── Wikilink index (built at startup) ──
+const wikiIndex = new Map(); // title (lowercase) → { title, file }
+
+async function buildWikiIndex() {
+  async function walk(dir) {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { await walk(full); }
+      else if (entry.name.endsWith(".md") && entry.name !== "index.md") {
+        try {
+          const content = await fs.readFile(full, "utf-8");
+          const title = (content.match(/^#\s+(.+)/m)?.[1] || entry.name.replace(".md", "").replace(/-/g, " ")).trim();
+          const relPath = path.relative(VAULT_ROOT, full).replace(/\\/g, "/");
+          wikiIndex.set(title.toLowerCase(), { title, file: relPath });
+          // Also index significant sub-headings (H2)
+          for (const m of content.matchAll(/^##\s+(.+)/gm)) {
+            const sub = m[1].trim();
+            if (sub.length > 4 && sub.length < 80) {
+              const key = sub.toLowerCase();
+              if (!wikiIndex.has(key)) wikiIndex.set(key, { title: sub, file: relPath + "#" + sub.toLowerCase().replace(/\s+/g, "-") });
+            }
+          }
+        } catch {}
+      }
+    }
+  }
+  await walk(VAULT_ROOT);
+  console.log(`   Wiki index: ${wikiIndex.size} titles`);
+}
+
+function addWikilinks(html) {
+  // Find the longest matching titles in the HTML and wrap them in wikilinks
+  const titles = [...wikiIndex.entries()].sort((a, b) => b[0].length - a[0].length); // longest first
+  for (const [key, { file }] of titles) {
+    const regex = new RegExp(`(${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})(?![^<]*>|[^<>]*<\\/a>)`, "gi");
+    html = html.replace(regex, (match) => {
+      if (match.length < 4) return match; // skip very short matches
+      return `<a href="/vault/${file}" class="wikilink" title="${match}">${match}</a>`;
+    });
+  }
+  return html;
+}
+
 // ── Start ──
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🍎 Cider Knowledge server running on :${PORT}`);
-  console.log(`   Access code: ${ACCESS_CODE === "cider2026" ? "cider2026 (default — set ACCESS_CODE env var to change)" : "(custom)"}`);
-  console.log(`   Q&A UI:     http://localhost:${PORT}/`);
-  console.log(`   Wiki:       http://localhost:${PORT}/vault/`);
-  console.log(`   Login:      http://localhost:${PORT}/login`);
-  console.log(`   Vault:      ${VAULT_ROOT}`);
+buildWikiIndex().then(() => {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🍎 Cider Knowledge server running on :${PORT}`);
+    console.log(`   Access code: ${ACCESS_CODE === "cider2026" ? "cider2026 (default — set ACCESS_CODE env var to change)" : "(custom)"}`);
+    console.log(`   Q&A UI:     http://localhost:${PORT}/`);
+    console.log(`   Wiki:       http://localhost:${PORT}/vault/`);
+    console.log(`   Login:      http://localhost:${PORT}/login`);
+    console.log(`   Graph:      http://localhost:${PORT}/vault/graph`);
+    console.log(`   Vault:      ${VAULT_ROOT}`);
+  });
 });
