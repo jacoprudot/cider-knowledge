@@ -384,26 +384,32 @@ async function searchVault(query) {
         const title = content.match(/^#\s+(.+)/m)?.[1] || entry.name.replace(".md", "").replace(/-/g, " ");
         const relPath = path.relative(VAULT_ROOT, full).replace(/\\/g, "/");
 
-        // Score: heavy title weight + phrase bonus + normalized TF
+        // Score: extreme title weight + IDF-like content scoring
         const titleLower = title.toLowerCase();
         const queryLower = query.toLowerCase().trim();
         let titleScore = 0;
 
-        // +200 for exact title match
-        if (titleLower === queryLower) titleScore += 200;
-        // +50 per individual term match in title
-        titleScore += terms.reduce((s, t) => s + (titleLower.includes(t) ? 50 : 0), 0);
-        // +100 if the full query phrase appears in the title
-        if (titleLower.includes(queryLower)) titleScore += 100;
+        // Massive bonus for key term matches in title (title should dominate search ranking)
+        for (const t of terms) {
+          if (t.length < 3) continue;
+          if (titleLower.includes(t)) {
+            titleScore += 200; // +200 per key term in title
+          }
+        }
+        // +500 for exact title match (the holy grail)
+        if (titleLower === queryLower) titleScore += 500;
+        // +300 if the full query phrase appears in the title
+        if (titleLower.includes(queryLower)) titleScore += 300;
 
         const contentLower = content.toLowerCase();
         const docLen = Math.max(content.length, 1000);
         let contentScore = terms.reduce((s, t) => {
+          if (t.length < 3) return s;
           const count = contentLower.split(t).length - 1;
           return s + (count * 1000) / docLen;
         }, 0);
-        // +30 if the exact query phrase appears in content
-        if (contentLower.includes(queryLower)) contentScore += 30;
+        // +50 if the exact query phrase appears in content
+        if (contentLower.includes(queryLower)) contentScore += 50;
 
         const totalScore = titleScore + contentScore;
         if (totalScore <= 0) return;
