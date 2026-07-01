@@ -404,6 +404,11 @@ app.post("/api/ask-voice", async (req, res) => {
   }
 });
 
+// ── Graph view (must be before /vault/* wildcard) ──
+app.get("/vault/graph", (req, res) => {
+  res.sendFile(path.join(ROOT, "public", "graph.html"));
+});
+
 // ── Public Wiki: /vault/* ──
 app.get(["/vault", "/vault/"], (req, res) => {
   res.redirect("/vault/index.md");
@@ -484,11 +489,6 @@ app.post("/api/voice/transcribe", async (req, res) => {
     console.error("/api/voice/transcribe error:", err);
     res.status(500).json({ error: "Transcription failed" });
   }
-});
-
-// ── Graph view ──
-app.get("/vault/graph", (req, res) => {
-  res.sendFile(path.join(ROOT, "public", "graph.html"));
 });
 
 // ── Serve Q&A UI ──
