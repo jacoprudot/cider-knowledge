@@ -582,7 +582,7 @@ app.get("/vault/*", async (req, res) => {
     }
 
     const md = await fs.readFile(resolved, "utf-8");
-    const html = addWikilinks(marked.parse(md));
+    const html = addWikilinks(marked.parse(md)).replace(/<table>/g, '<div class="table-wrap"><table>').replace(/<\/table>/g, '</table></div>');
     res.type("html").send(renderWikiPage(relativePath.replace(".md", ""), html));
   } catch (err) {
     console.error("/vault error:", err);
@@ -719,6 +719,13 @@ function renderLoginPage(error, returnTo) {
     </div>
   </div>
   <script>
+    // Dark mode
+    (function(){
+      var t=document.getElementById("themeToggle");
+      var s=localStorage.getItem("cider-theme");
+      if(s==="dark"||(!s&&window.matchMedia("(prefers-color-scheme:dark)").matches)){document.documentElement.classList.add("dark");t.textContent="☀️"}
+      t.addEventListener("click",function(){var d=document.documentElement.classList.toggle("dark");t.textContent=d?"☀️":"🌙";localStorage.setItem("cider-theme",d?"dark":"light")})
+    })();
     document.getElementById("codeForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const res = await fetch("/api/login", {
@@ -796,9 +803,10 @@ function renderWikiPage(currentPath, content) {
     .wikilink { border-bottom: 1px dashed rgba(139,46,46,0.3); text-decoration: none; }
     .wikilink:hover { border-bottom-color: #8B2E2E; }
     main blockquote { border-left: 3px solid var(--gold); padding: 0.5rem 1rem; margin: 1rem 0; background: var(--blockquote-bg); font-style: italic; font-size: 0.9rem; }
-    main table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
-    main th { background: var(--charcoal); color: var(--bg); padding: 0.6rem 0.75rem; text-align: left; font-family: 'Oswald', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; }
-    main td { border: 1px solid var(--grey); padding: 0.5rem 0.75rem; }
+    main table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+    .table-wrap { overflow-x: auto; max-width: 100%; margin: 1rem 0; -webkit-overflow-scrolling: touch; }
+    main th { background: var(--charcoal); color: var(--bg); padding: 0.5rem 0.65rem; text-align: left; font-family: 'Oswald', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; white-space: nowrap; position: sticky; top: 0; }
+    main td { border: 1px solid var(--grey); padding: 0.4rem 0.6rem; font-size: 0.82rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
     main tr:nth-child(even) td { background: var(--row-alt); }
     main code { background: var(--code-bg); padding: 0.15rem 0.35rem; border-radius: 3px; font-size: 0.88em; }
     main pre { background: var(--sidebar-bg); color: #fff; padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }

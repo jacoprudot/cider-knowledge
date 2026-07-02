@@ -128,11 +128,13 @@ def extract_xlsx(filepath: Path) -> str:
     for sname in wb.sheetnames:
         ws = wb[sname]
         parts.append(f"\n## Sheet: {sname}\n")
+        # Find the first non-empty row to determine actual column count
+        actual_cols = min(ws.max_column, 15)  # cap at 15 columns
         rows_list = []
-        for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row, 200), values_only=True):
-            vals = [str(v) if v is not None else "" for v in row]
+        for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row, 100), values_only=True):
+            vals = [str(v)[:200] if v is not None else "" for v in row[:actual_cols]]
             if any(v for v in vals):
-                rows_list.append("| " + " | ".join(vals[:15]) + " |")  # limit columns
+                rows_list.append("| " + " | ".join(vals) + " |")
         if rows_list:
             parts.extend(rows_list)
     return "\n".join(parts)
