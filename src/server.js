@@ -608,55 +608,75 @@ function renderLoginPage(error, returnTo) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Oswald:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    :root { --charcoal: #1a1a1a; --gold: #C4A35A; --grey: #D4CFC4; --glass-bg: rgba(255,255,255,0.9); }
+    :root {
+      --charcoal: #1c1a18; --gold: #C4A35A; --grey: #D4CFC4;
+      --glass-bg: rgba(255,255,255,0.9); --bg: linear-gradient(135deg, #f5f0e8 0%, #ede4d3 40%, #e8dfc8 100%);
+      --text-secondary: #666; --input-bg: #fff; --btn-hover: #333;
+    }
+    .dark {
+      --charcoal: #e8e4dc; --gold: #d4b36a; --grey: #3a3630;
+      --glass-bg: rgba(37,35,32,0.9); --bg: #1c1a18;
+      --text-secondary: #999; --input-bg: #252320; --btn-hover: #555;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Lato', sans-serif; font-weight: 400;
-      background: linear-gradient(135deg, #f5f0e8 0%, #ede4d3 40%, #e8dfc8 100%);
-      color: var(--charcoal); display: flex; align-items: center; justify-content: center;
-      min-height: 100vh;
+      background: var(--bg); color: var(--charcoal);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; transition: background 0.3s, color 0.3s;
+    }
+    .theme-toggle {
+      position: fixed; top: 1rem; right: 1rem;
+      background: var(--glass-bg); border: 1px solid var(--grey);
+      border-radius: 50%; width: 36px; height: 36px;
+      cursor: pointer; font-size: 1rem; display: flex;
+      align-items: center; justify-content: center;
+      transition: background 0.3s, border-color 0.3s; z-index: 10;
     }
     .login-card {
       background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.3); border-radius: 12px;
+      border: 1px solid rgba(128,128,128,0.15); border-radius: 12px;
       padding: 2.5rem; max-width: 420px; width: 90%;
-      box-shadow: 0 2px 20px rgba(0,0,0,0.06);
-      text-align: center;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.06); text-align: center;
+      transition: background 0.3s, border-color 0.3s;
     }
     .login-card img { max-width: 200px; height: auto; margin-bottom: 0.75rem; }
-    .login-card .subtitle { color: #666; margin-bottom: 2rem; font-size: 0.9rem; line-height: 1.5; }
+    .dark .login-card img { filter: brightness(10); }
+    .login-card .subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem; line-height: 1.5; }
     .login-card label { display: block; font-size: 0.8rem; margin-bottom: 0.35rem; color: var(--charcoal); text-align: left; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
     .login-card input {
       width: 100%; padding: 0.75rem 0.85rem; font-size: 1rem;
       border: 1px solid var(--grey); border-radius: 6px;
       font-family: 'Lato', sans-serif; outline: none; margin-bottom: 1rem;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      background: var(--input-bg); color: var(--charcoal);
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.3s, color 0.3s;
     }
     .login-card input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,163,90,0.15); }
     .login-card button {
       width: 100%; padding: 0.8rem; font-size: 0.9rem; font-weight: 700;
-      background: var(--charcoal); color: #fff; border: none;
+      background: #1c1a18; color: #fff; border: none;
       border-radius: 6px; cursor: pointer; font-family: 'Lato', sans-serif;
       text-transform: uppercase; letter-spacing: 0.05em;
       transition: background 0.2s;
     }
-    .login-card button:hover { background: #333; }
+    .dark .login-card button { background: #d4b36a; color: #141210; }
+    .login-card button:hover { background: var(--btn-hover); }
     .login-card button.secondary {
       background: none; color: var(--charcoal); border: 1px solid var(--grey);
       font-weight: 400; margin-top: 0.75rem; text-transform: none; letter-spacing: 0;
     }
-    .login-card button.secondary:hover { border-color: var(--charcoal); background: rgba(0,0,0,0.02); }
+    .login-card button.secondary:hover { border-color: var(--charcoal); background: rgba(128,128,128,0.08); }
     .login-card button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .error { color: #8B2E2E; font-size: 0.85rem; margin-bottom: 1rem; }
+    .error { color: #d44; font-size: 0.85rem; margin-bottom: 1rem; }
     .divider { display: flex; align-items: center; margin: 1.25rem 0; color: #aaa; font-size: 0.8rem; }
     .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--grey); }
     .divider span { padding: 0 0.75rem; }
     .magic-sent { text-align: center; padding: 1.5rem 0; display: none; }
     .magic-sent.visible { display: block; }
     .magic-sent .check { font-size: 1.5rem; color: var(--gold); margin-bottom: 0.75rem; }
-    .magic-sent p { color: #666; font-size: 0.85rem; margin-bottom: 0.5rem; line-height: 1.5; }
+    .magic-sent p { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem; line-height: 1.5; }
     .magic-sent .magic-url {
-      background: rgba(0,0,0,0.03); padding: 0.6rem 0.75rem; border-radius: 6px;
+      background: rgba(128,128,128,0.08); padding: 0.6rem 0.75rem; border-radius: 6px;
       font-family: monospace; font-size: 0.75rem; word-break: break-all;
       color: var(--charcoal); margin: 0.75rem 0; text-align: left;
     }
@@ -666,6 +686,7 @@ function renderLoginPage(error, returnTo) {
   </style>
 </head>
 <body>
+  <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
   <div class="login-card">
     <img src="/logo.png" alt="Cider Institute of North America">
     <p class="subtitle">Knowledge Library — Member Access</p>
@@ -749,23 +770,21 @@ function renderWikiPage(currentPath, content) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Oswald:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    :root { --cream: #F8F5F0; --charcoal: #1a1a1a; --gold: #C4A35A; --grey: #D4CFC4; }
+    :root { --bg: #F8F5F0; --charcoal: #1c1a18; --gold: #C4A35A; --grey: #D4CFC4; --sidebar-bg: #1c1a18; --sidebar-link: #ccc; --sidebar-hover: rgba(255,255,255,0.06); --code-bg: rgba(0,0,0,0.05); --blockquote-bg: rgba(196,163,90,0.08); --row-alt: rgba(0,0,0,0.015); }
+    .dark { --bg: #141210; --charcoal: #e8e4dc; --gold: #d4b36a; --grey: #3a3630; --sidebar-bg: #0e0d0b; --sidebar-link: #bbb; --sidebar-hover: rgba(255,255,255,0.04); --code-bg: rgba(255,255,255,0.06); --blockquote-bg: rgba(196,163,90,0.06); --row-alt: rgba(255,255,255,0.02); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Lato', sans-serif; font-weight: 400; background: var(--cream); color: var(--charcoal); display: flex; min-height: 100vh; }
+    body { font-family: 'Lato', sans-serif; font-weight: 400; background: var(--bg); color: var(--charcoal); display: flex; min-height: 100vh; transition: background 0.3s, color 0.3s; }
     nav {
-      width: 280px; background: var(--charcoal); color: #fff; padding: 1.75rem 1.5rem;
-      position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0;
+      width: 280px; background: var(--sidebar-bg); color: #fff; padding: 1.75rem 1.5rem;
+      position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; transition: background 0.3s;
     }
     nav img { max-width: 160px; height: auto; margin-bottom: 1.5rem; filter: brightness(10); display: block; }
-    nav a { color: #ccc; text-decoration: none; display: block; padding: 0.35rem 0; font-size: 0.85rem; transition: color 0.2s; }
+    nav a { color: var(--sidebar-link); text-decoration: none; display: block; padding: 0.35rem 0; font-size: 0.85rem; transition: color 0.2s; }
     nav a:hover { color: #fff; }
     nav .nav-section { margin: 1.5rem 0; }
-    nav .nav-section strong {
-      color: #888; font-size: 0.7rem; text-transform: uppercase;
-      letter-spacing: 0.12em; display: block; margin-bottom: 0.5rem;
-      font-family: 'Oswald', sans-serif; font-weight: 400;
-    }
+    nav .nav-section strong { color: #888; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; display: block; margin-bottom: 0.5rem; font-family: 'Oswald', sans-serif; font-weight: 400; }
     .logout-link { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.78rem; }
+    .theme-btn { position: fixed; bottom: 1.25rem; right: 1.25rem; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--grey); background: var(--bg); color: var(--charcoal); cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.3s; z-index: 10; }
     main { flex: 1; padding: 2.5rem 3rem; max-width: 850px; }
     main h1 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 2rem; margin-bottom: 1.5rem; color: var(--charcoal); }
     main h2 { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 1.3rem; margin: 2rem 0 0.75rem; border-bottom: 1px solid var(--grey); padding-bottom: 0.35rem; }
@@ -773,18 +792,16 @@ function renderWikiPage(currentPath, content) {
     main p { line-height: 1.75; margin-bottom: 1rem; font-size: 0.95rem; }
     main ul, main ol { margin: 0.5rem 0 1rem 1.5rem; line-height: 1.75; font-size: 0.95rem; }
     main a { color: #8B2E2E; }
+    .dark main a { color: #d4b36a; }
     .wikilink { border-bottom: 1px dashed rgba(139,46,46,0.3); text-decoration: none; }
     .wikilink:hover { border-bottom-color: #8B2E2E; }
-    main blockquote {
-      border-left: 3px solid var(--gold); padding: 0.5rem 1rem; margin: 1rem 0;
-      background: rgba(196,163,90,0.08); font-style: italic; font-size: 0.9rem;
-    }
+    main blockquote { border-left: 3px solid var(--gold); padding: 0.5rem 1rem; margin: 1rem 0; background: var(--blockquote-bg); font-style: italic; font-size: 0.9rem; }
     main table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
-    main th { background: var(--charcoal); color: #fff; padding: 0.6rem 0.75rem; text-align: left; font-family: 'Oswald', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; }
+    main th { background: var(--charcoal); color: var(--bg); padding: 0.6rem 0.75rem; text-align: left; font-family: 'Oswald', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; }
     main td { border: 1px solid var(--grey); padding: 0.5rem 0.75rem; }
-    main tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
-    main code { background: rgba(0,0,0,0.05); padding: 0.15rem 0.35rem; border-radius: 3px; font-size: 0.88em; }
-    main pre { background: var(--charcoal); color: #fff; padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
+    main tr:nth-child(even) td { background: var(--row-alt); }
+    main code { background: var(--code-bg); padding: 0.15rem 0.35rem; border-radius: 3px; font-size: 0.88em; }
+    main pre { background: var(--sidebar-bg); color: #fff; padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
     main pre code { background: none; padding: 0; color: inherit; }
     .breadcrumb { font-size: 0.8rem; color: #aaa; margin-bottom: 1.5rem; font-family: 'Lato', sans-serif; }
     .breadcrumb a { color: #aaa; text-decoration: none; }
@@ -814,6 +831,21 @@ function renderWikiPage(currentPath, content) {
     <div class="breadcrumb"><a href="/vault/">Home</a>${cleanPath ? " › " + cleanPath : ""}</div>
     ${content}
   </main>
+  <button class="theme-btn" id="themeBtn" title="Toggle dark mode">🌙</button>
+  <script>
+    (function(){
+      var btn = document.getElementById("themeBtn");
+      var saved = localStorage.getItem("cider-theme");
+      if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+        document.documentElement.classList.add("dark"); btn.textContent = "☀️";
+      }
+      btn.addEventListener("click", function(){
+        var isDark = document.documentElement.classList.toggle("dark");
+        btn.textContent = isDark ? "☀️" : "🌙";
+        localStorage.setItem("cider-theme", isDark ? "dark" : "light");
+      });
+    })();
+  </script>
 </body>
 </html>`;
 }
