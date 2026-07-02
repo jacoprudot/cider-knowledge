@@ -32,8 +32,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── Vault path ──
-const VAULT_ROOT = path.join(ROOT, "vault");
+// ── Vault paths ──
+const VAULT_ROOT = path.join(ROOT, "vault");           // baked-in (read-only)
+const VAULT_EDITABLE = path.join(ROOT, ".data", "vault"); // user-editable (persistent)
+
+// Helper: read a vault file, checking editable path first
+async function readVaultFile(relativePath) {
+  const editPath = path.join(VAULT_EDITABLE, relativePath);
+  try { return await fs.readFile(editPath, "utf-8"); } catch {}
+  return fs.readFile(path.join(VAULT_ROOT, relativePath), "utf-8");
+}
 
 // ── Conversation store (disk-persisted, per-user) ──
 const conversations = new Map();
@@ -451,6 +459,8 @@ async function searchVault(query) {
   }
 
   await walk(VAULT_ROOT);
+  // Also scan user-editable vault (overrides baked-in files)
+  try { await walk(VAULT_EDITABLE); } catch {}
   // Deduplicate by file, keep highest-scoring chunks
   results.sort((a, b) => b.score - a.score);
   const seen = new Set();
@@ -538,6 +548,41 @@ app.post("/api/ask", async (req, res) => {
   }
 });
 
+// ── Vault Editor ──
+app.get("/vault/edit", (req, res) => {
+  const file = req.query.file || "";
+  res.type("html").send(renderEditPage(file));
+});
+
+app.post("/api/vault/save", async (req, res) => {
+  const { file, content } = req.body;
+  if (!file || content === undefined) return res.status(400).json({ error: "file and content required" });
+  // Security: only allow .md files within vault paths
+  if (!file.endsWith(".md") || file.includes("..")) return res.status(403).json({ error: "Invalid path" });
+  try {
+    const target = path.join(VAULT_EDITABLE, file);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, content, "utf-8");
+    res.json({ ok: true, file });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/vault/delete", async (req, res) => {
+  const file = req.body.file;
+  if (!file) return res.status(400).json({ error: "file required" });
+  if (!file.endsWith(".md") || file.includes("..")) return res.status(403).json({ error: "Invalid path" });
+  try {
+    // Only delete from editable path (never from baked-in vault)
+    const target = path.join(VAULT_EDITABLE, file);
+    await fs.unlink(target);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Graph view (must be before /vault/* wildcard) ──
 app.get("/vault/graph", (req, res) => {
   res.sendFile(path.join(ROOT, "public", "graph.html"));
@@ -597,13 +642,108 @@ app.get("/vault/*", async (req, res) => {
       }
     }
 
-    const md = await fs.readFile(resolved, "utf-8");
+    const md = await readVaultFile(relativePath);
     const html = addWikilinks(marked.parse(md)).replace(/<table>/g, '<div class="table-wrap"><table>').replace(/<\/table>/g, '</table></div>');
     res.type("html").send(renderWikiPage(relativePath.replace(".md", ""), html));
   } catch (err) {
     console.error("/vault error:", err);
     res.status(500).type("html").send(renderWikiPage("Error", "<h1>Internal error</h1>"));
   }
+});
+
+// ── Vault edit page ──
+function renderEditPage(file) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit — Cider Institute</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Oswald:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#141210; --card:#1c1a18; --text:#e8e4dc; --gold:#d4b36a; --grey:#3a3630; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Lato',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+    .toolbar { padding:0.75rem 1.5rem; background:var(--card); border-bottom:1px solid var(--grey); display:flex; align-items:center; justify-content:space-between; }
+    .toolbar h1 { font-family:'Oswald',sans-serif; font-size:1rem; font-weight:400; }
+    .toolbar a, .toolbar button { color:var(--text); text-decoration:none; font-size:0.8rem; background:none; border:1px solid var(--grey); padding:0.4rem 0.9rem; border-radius:5px; cursor:pointer; font-family:inherit; transition:all 0.2s; }
+    .toolbar button.save { background:var(--gold); color:#141210; border-color:var(--gold); font-weight:700; }
+    .toolbar button.save:hover { background:#c59e4f; }
+    .toolbar button.delete { color:#e88; border-color:#e88; }
+    .toolbar button.delete:hover { background:rgba(238,136,136,0.1); }
+    textarea { flex:1; width:100%; padding:1.5rem; background:var(--bg); color:var(--text); border:none; font-family:monospace; font-size:0.9rem; line-height:1.6; resize:none; outline:none; }
+    .status { position:fixed; bottom:1rem; right:1rem; background:var(--card); border:1px solid var(--grey); padding:0.6rem 1rem; border-radius:6px; font-size:0.8rem; opacity:0; transition:opacity 0.3s; }
+    .status.show { opacity:1; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>Editing: ${file}</h1>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="delete" onclick="doDelete()">Delete</button>
+      <button class="save" onclick="doSave()">Save</button>
+      <a href="/vault/${file}">← View</a>
+    </div>
+  </div>
+  <textarea id="editor" spellcheck="false">Loading...</textarea>
+  <div class="status" id="status"></div>
+  <script>
+    var file = "${file}";
+    // Load content
+    fetch("/vault/" + file).then(r=>r.text()).then(html=>{
+      // Extract markdown from the rendered HTML page (it's in a <main> tag)
+      var main = html.match(/<main>([\\s\\S]*?)<\\/main>/);
+      if (main) {
+        // We need raw markdown, not rendered HTML. Fetch from API.
+        return fetch("/api/vault/raw?file=" + encodeURIComponent(file)).then(r=>r.json());
+      }
+      return {content:""};
+    }).then(data=>{
+      document.getElementById("editor").value = data.content || "";
+    }).catch(()=>{
+      document.getElementById("editor").value = "# Could not load file\\n\\nEdit manually or go back.";
+    });
+
+    async function doSave() {
+      var content = document.getElementById("editor").value;
+      var r = await fetch("/api/vault/save", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({file:file, content:content})
+      });
+      var d = await r.json();
+      var s = document.getElementById("status");
+      s.textContent = d.ok ? "Saved! ✓" : "Error: " + (d.error||"unknown");
+      s.className = "status show";
+      setTimeout(function(){ s.className = "status"; }, 2000);
+    }
+
+    async function doDelete() {
+      if (!confirm("Delete " + file + "?")) return;
+      var r = await fetch("/api/vault/delete", {
+        method:"DELETE", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({file:file})
+      });
+      var d = await r.json();
+      if (d.ok) window.location.href = "/vault/";
+      else alert("Error: " + (d.error||"unknown"));
+    }
+
+    // Ctrl+S to save
+    document.addEventListener("keydown", function(e){
+      if ((e.ctrlKey||e.metaKey) && e.key==="s") { e.preventDefault(); doSave(); }
+    });
+  </script>
+</body>
+</html>`;
+}
+
+// ── RAW vault content API (for editor) ──
+app.get("/api/vault/raw", async (req, res) => {
+  const file = req.query.file || "";
+  if (!file.endsWith(".md") || file.includes("..")) return res.status(403).json({ error: "Invalid" });
+  try {
+    const content = await readVaultFile(file);
+    res.json({ content });
+  } catch { res.status(404).json({ error: "Not found" }); }
 });
 
 // ── Serve Q&A UI ──
@@ -862,6 +1002,9 @@ function renderWikiPage(currentPath, content) {
       <a href="/vault/aroma-chemistry/">Aroma Chemistry</a>
     </div>
     <a href="/vault/graph" style="margin-top:1.5rem;font-size:0.82rem;">🕸️ Knowledge Graph</a>
+    <div id="editLink" style="margin-top:0.5rem;font-size:0.78rem;display:none;">
+      <a href="/vault/edit?file=" id="editLinkA">✏️ Edit this page</a>
+    </div>
     <div class="logout-link">
       <a href="/">← Q&A</a>
       <a href="/api/logout" style="margin-top:0.5rem;">Log out</a>
@@ -873,6 +1016,16 @@ function renderWikiPage(currentPath, content) {
   </main>
   <button class="theme-btn" id="themeBtn" title="Toggle dark mode">🌙</button>
   <script>
+    // Show edit link when viewing a file
+    (function(){
+      var path = window.location.pathname.replace("/vault/","");
+      if (path && path.endsWith(".md")) {
+        var el = document.getElementById("editLink");
+        var a = document.getElementById("editLinkA");
+        el.style.display = "block";
+        a.href = "/vault/edit?file=" + path;
+      }
+    })();
     // Vault search
     (function(){
       var inp = document.getElementById("vaultSearch");
@@ -962,7 +1115,8 @@ function addWikilinks(html) {
 }
 
 // ── Start ──
-loadConversations().then(() => buildWikiIndex()).then(() => {
+fs.mkdir(VAULT_EDITABLE, { recursive: true }).catch(() => {}).then(() =>
+loadConversations()).then(() => buildWikiIndex()).then(() => {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🍎 Cider Knowledge server running on :${PORT}`);
     console.log(`   Access code: ${ACCESS_CODE === "cider2026" ? "cider2026 (default — set ACCESS_CODE env var to change)" : "(custom)"}`);
