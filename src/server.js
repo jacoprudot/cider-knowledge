@@ -625,13 +625,8 @@ function renderLoginPage(error, returnTo) {
   <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Oswald:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --charcoal: #1c1a18; --gold: #C4A35A; --grey: #D4CFC4;
-      --glass-bg: rgba(255,255,255,0.9); --bg: linear-gradient(135deg, #f5f0e8 0%, #ede4d3 40%, #e8dfc8 100%);
-      --text-secondary: #666; --input-bg: #fff; --btn-hover: #333;
-    }
-    .dark {
-      --charcoal: #e8e4dc; --gold: #d4b36a; --grey: #3a3630;
-      --glass-bg: rgba(37,35,32,0.9); --bg: #1c1a18;
+      --charcoal: #e8e4dc; --gold: #C4A35A; --grey: #3a3630;
+      --glass-bg: #1c1a18; --bg: #141210;
       --text-secondary: #999; --input-bg: #252320; --btn-hover: #555;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -643,21 +638,19 @@ function renderLoginPage(error, returnTo) {
     }
     .theme-toggle {
       position: fixed; top: 1rem; right: 1rem;
-      background: var(--glass-bg); border: 1px solid var(--grey);
+      background: var(--input-bg); border: 1px solid var(--grey);
       border-radius: 50%; width: 36px; height: 36px;
       cursor: pointer; font-size: 1rem; display: flex;
       align-items: center; justify-content: center;
       transition: background 0.3s, border-color 0.3s; z-index: 10;
     }
     .login-card {
-      background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(128,128,128,0.15); border-radius: 12px;
-      padding: 2.5rem; max-width: 420px; width: 90%;
-      box-shadow: 0 2px 20px rgba(0,0,0,0.06); text-align: center;
+      background: var(--glass-bg); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 2.5rem; max-width: 420px; width: 90%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3); text-align: center;
       transition: background 0.3s, border-color 0.3s;
     }
     .login-card img { max-width: 200px; height: auto; margin-bottom: 0.75rem; }
-    .dark .login-card img { filter: brightness(10); }
     .login-card .subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem; line-height: 1.5; }
     .login-card label { display: block; font-size: 0.8rem; margin-bottom: 0.35rem; color: var(--charcoal); text-align: left; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
     .login-card input {
@@ -670,20 +663,19 @@ function renderLoginPage(error, returnTo) {
     .login-card input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,163,90,0.15); }
     .login-card button {
       width: 100%; padding: 0.8rem; font-size: 0.9rem; font-weight: 700;
-      background: #1c1a18; color: #fff; border: none;
+      background: #d4b36a; color: #141210; border: none;
       border-radius: 6px; cursor: pointer; font-family: 'Lato', sans-serif;
       text-transform: uppercase; letter-spacing: 0.05em;
       transition: background 0.2s;
     }
-    .dark .login-card button { background: #d4b36a; color: #141210; }
-    .login-card button:hover { background: var(--btn-hover); }
+    .login-card button:hover { background: #c59e4f; }
     .login-card button.secondary {
       background: none; color: var(--charcoal); border: 1px solid var(--grey);
       font-weight: 400; margin-top: 0.75rem; text-transform: none; letter-spacing: 0;
     }
-    .login-card button.secondary:hover { border-color: var(--charcoal); background: rgba(128,128,128,0.08); }
+    .login-card button.secondary:hover { border-color: #fff; background: rgba(255,255,255,0.05); }
     .login-card button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .error { color: #d44; font-size: 0.85rem; margin-bottom: 1rem; }
+    .error { color: #e88; font-size: 0.85rem; margin-bottom: 1rem; }
     .divider { display: flex; align-items: center; margin: 1.25rem 0; color: #aaa; font-size: 0.8rem; }
     .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--grey); }
     .divider span { padding: 0 0.75rem; }
@@ -692,13 +684,13 @@ function renderLoginPage(error, returnTo) {
     .magic-sent .check { font-size: 1.5rem; color: var(--gold); margin-bottom: 0.75rem; }
     .magic-sent p { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem; line-height: 1.5; }
     .magic-sent .magic-url {
-      background: rgba(128,128,128,0.08); padding: 0.6rem 0.75rem; border-radius: 6px;
+      background: rgba(255,255,255,0.06); padding: 0.6rem 0.75rem; border-radius: 6px;
       font-family: monospace; font-size: 0.75rem; word-break: break-all;
       color: var(--charcoal); margin: 0.75rem 0; text-align: left;
     }
     .magic-sent .hint { font-size: 0.75rem; color: #aaa; margin-top: 0.5rem; }
-    .footer { margin-top: 1.5rem; font-size: 0.75rem; color: #aaa; }
-    .footer a { color: #999; }
+    .footer { margin-top: 1.5rem; font-size: 0.75rem; color: #888; }
+    .footer a { color: #aaa; }
   </style>
 </head>
 <body>
