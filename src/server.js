@@ -543,6 +543,22 @@ app.get("/vault/graph", (req, res) => {
   res.sendFile(path.join(ROOT, "public", "graph.html"));
 });
 
+// ── Vault search API ──
+app.get("/api/vault/search", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (!q || q.length < 2) return res.json({ results: [] });
+
+  const results = await searchVault(q);
+  res.json({
+    query: q,
+    results: results.slice(0, 10).map((r) => ({
+      title: r.title,
+      file: r.file,
+      snippet: r.content.slice(0, 200).replace(/\n/g, " ").trim() + "...",
+    })),
+  });
+});
+
 // ── Public Wiki: /vault/* ──
 app.get(["/vault", "/vault/"], (req, res) => {
   res.redirect("/vault/index.md");
@@ -785,7 +801,27 @@ function renderWikiPage(currentPath, content) {
       width: 280px; background: var(--sidebar-bg); color: #fff; padding: 1.75rem 1.5rem;
       position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; transition: background 0.3s;
     }
-    nav img { max-width: 160px; height: auto; margin-bottom: 1.5rem; filter: brightness(10); display: block; }
+    nav img { max-width: 160px; height: auto; margin-bottom: 1rem; filter: brightness(10); display: block; }
+    .vault-search { position: relative; margin-bottom: 1.5rem; }
+    .vault-search input {
+      width: 100%; padding: 0.45rem 0.6rem; font-size: 0.78rem;
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 5px;
+      background: rgba(255,255,255,0.07); color: #fff;
+      font-family: 'Lato', sans-serif; outline: none;
+      transition: border-color 0.2s;
+    }
+    .vault-search input:focus { border-color: var(--gold); }
+    .vault-search input::placeholder { color: rgba(255,255,255,0.3); }
+    .search-results { margin-top: 0.4rem; display: none; }
+    .search-results.active { display: block; }
+    .search-results a {
+      display: block; padding: 0.35rem 0.5rem; font-size: 0.78rem;
+      border-radius: 4px; color: #ddd; line-height: 1.35;
+      transition: background 0.15s;
+    }
+    .search-results a:hover { background: var(--sidebar-hover); color: #fff; }
+    .search-results a .match { color: var(--gold); }
+    .search-results .no-results { font-size: 0.75rem; color: #888; padding: 0.5rem; }
     nav a { color: var(--sidebar-link); text-decoration: none; display: block; padding: 0.35rem 0; font-size: 0.85rem; transition: color 0.2s; }
     nav a:hover { color: #fff; }
     nav .nav-section { margin: 1.5rem 0; }
@@ -820,6 +856,10 @@ function renderWikiPage(currentPath, content) {
 <body>
   <nav>
     <img src="/logo.png" alt="Cider Institute">
+    <div class="vault-search">
+      <input type="text" id="vaultSearch" placeholder="Search vault..." autocomplete="off">
+      <div class="search-results" id="searchResults"></div>
+    </div>
     <div class="nav-section">
       <strong>Topics</strong>
       <a href="/vault/fermentation/">Fermentation</a>
@@ -841,6 +881,33 @@ function renderWikiPage(currentPath, content) {
   </main>
   <button class="theme-btn" id="themeBtn" title="Toggle dark mode">🌙</button>
   <script>
+    // Vault search
+    (function(){
+      var inp = document.getElementById("vaultSearch");
+      var res = document.getElementById("searchResults");
+      var timer;
+      inp.addEventListener("input", function(){
+        clearTimeout(timer);
+        var q = inp.value.trim();
+        if (q.length < 2) { res.classList.remove("active"); return; }
+        timer = setTimeout(async function(){
+          var r = await fetch("/api/vault/search?q=" + encodeURIComponent(q));
+          var d = await r.json();
+          if (!d.results.length) {
+            res.innerHTML = '<div class="no-results">No results</div>';
+          } else {
+            res.innerHTML = d.results.map(function(s){
+              return '<a href="/vault/' + s.file + '">' + s.title + '</a>';
+            }).join("");
+          }
+          res.classList.add("active");
+        }, 200);
+      });
+      inp.addEventListener("blur", function(){
+        setTimeout(function(){ res.classList.remove("active"); }, 200);
+      });
+    })();
+    // Dark mode
     (function(){
       var btn = document.getElementById("themeBtn");
       var saved = localStorage.getItem("cider-theme");
