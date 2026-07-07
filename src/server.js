@@ -99,7 +99,7 @@ function getUserConversations(userHash) {
 
 // ── Auth: shared access code with unique session per user ──
 const COOKIE_NAME = "cider_token";
-const COOKIE_SECRET = process.env.COOKIE_SECRET || crypto.randomBytes(32).toString("hex");
+const COOKIE_SECRET = process.env.COOKIE_SECRET || "cider-knowledge-2026-secret-k8x";
 
 function signToken(code, sessionId) {
   // Format: code.signature.sessionId
@@ -213,7 +213,7 @@ app.get("/login", (req, res) => {
 
 app.post("/api/login", (req, res) => {
   const { code, return: returnTo } = req.body;
-  if (code === ACCESS_CODE) {
+  if ((code || "").trim() === ACCESS_CODE) {
     const sessionId = crypto.randomUUID();
     const token = signToken(code, sessionId);
     const maxAge = 30 * 24 * 60 * 60; // 30 days
@@ -240,7 +240,7 @@ app.get("/api/health", (req, res) => {
 
 // Generate magic link (requires access code)
 app.post("/api/magic", (req, res) => {
-  if (req.body.code !== ACCESS_CODE) {
+  if ((req.body.code || "").trim() !== ACCESS_CODE) {
     return res.status(401).json({ error: "Invalid access code" });
   }
   const magicToken = generateMagicLink();

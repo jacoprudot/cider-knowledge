@@ -55,6 +55,8 @@ docker run -d \
   -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
   -e PORT=${APP_PORT} \
   -e NODE_ENV=production \
+  -e ACCESS_CODE=cider2026 \
+  -e COOKIE_SECRET=cider-knowledge-2026-secret-k8x \
   -v ${APP_DIR}/vault:/app/vault \
   -l traefik.enable=true \
   -l "traefik.http.routers.${APP_NAME}.rule=Host(\`${DOMAIN}\`)" \
