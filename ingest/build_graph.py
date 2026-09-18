@@ -23,6 +23,25 @@ TOPIC_COLORS = {
     "other": "#aaa",
 }
 
+# Technical vocabulary for TF-IDF-style content keywords. Extracted with a
+# corpus document-frequency filter (2..60% of files) so universal words like
+# "cider" don't connect everything to everything.
+TECH_TERMS = set("""cider perry fermentation ferment fermented yeast mlf malolactic lactic acid acidity
+tannin tannins phenolic phenolics apple apples pear pears juice fruit flavor flavours aroma aromas
+sulfur dioxide so2 sulfite sulphite maturation mature matured racking racked filtration filter
+filtered fining fined clarification clarity carbonation carbonated blending blended packaging
+packaged bottling bottled pasteurization pasteurized sterile stability spoilage microbiology
+microbial bacteria bacterial laboratory labs analysis testing test sensory quality assurance
+control qa inspection sanitation sanitization cleaning hygiene gmp safety hazards haccp
+sweet sweetened dry medium sugar sugars brix gravity alcohol abv percent concentration
+storage stored storing harvest harvesting orchard orcharding planting trees rootstock
+scion propagation pruning cultivar varieties variety vintage pressing milling grinding
+pomace pulp must press pressed batch batches tank tanks vessel vessels barrel
+barrels cask casks oak wood wooden stainless steel pump pumps transfer transferred
+temperature temperatures heat cooling chilled cold warm ambient oxidation oxidized
+oxygen aeration headspace ullage sediment lees haze turbidity cloudy bright brilliant
+sparkling still co2 carbon dioxide nitrogen argon""".split())
+
 files = {}
 file_keywords = {}
 
@@ -59,6 +78,33 @@ for fp in sorted(VAULT.rglob("*.md")):
     files[rel_path] = {"title": title, "topic": topic, "keywords": list(kws)[:15]}
     file_keywords[rel_path] = kws
 
+# ── Second pass: technical-term keywords with corpus document-frequency filter ──
+# First count in how many files each technical term appears…
+term_df = defaultdict(int)
+for fpath, _ in files.items():
+    # file_keywords may be expanded below; use raw content instead
+    content = (VAULT / fpath).read_text(encoding="utf-8").lower()
+    content = re.sub(r"[^a-z\s]", " ", content)
+    for t in set(TECH_TERMS) & set(content.split()):
+        term_df[t] += 1
+
+n_files = len(files)
+# Keep terms appearing in 2..~14% of files — rarer terms create meaningful
+# edges; common terms (60%) connect everything to everything (hairball).
+max_df = max(3, int(n_files * 0.14))
+
+# …then add the rare-ish ones (appearing in 2..60% of files) to each file
+for fpath, _ in files.items():
+    content = (VAULT / fpath).read_text(encoding="utf-8").lower()
+    content = re.sub(r"[^a-z\s]", " ", content)
+    words = content.split()
+    counter = defaultdict(int)
+    for w in words:
+        if w in TECH_TERMS and 2 <= term_df.get(w, 0) <= max_df:
+            counter[w] += 1
+    top = sorted(counter, key=lambda w: -counter[w])[:30]
+    file_keywords[fpath] |= set(top)
+
 # Build nodes
 nodes = []
 for fpath, data in files.items():
@@ -69,7 +115,8 @@ for fpath, data in files.items():
         "color": TOPIC_COLORS.get(data["topic"], "#aaa"),
     })
 
-# Build edges: files sharing 3+ keywords
+# Build edges: files sharing >=4 keywords (raised from 2 — the technical-term
+# pool adds many common words, so a higher bar keeps edges meaningful)
 edges = []
 seen = set()
 file_list = list(files.keys())
@@ -78,7 +125,7 @@ for i in range(len(file_list)):
     for j in range(i + 1, len(file_list)):
         f1, f2 = file_list[i], file_list[j]
         overlap = file_keywords[f1] & file_keywords[f2]
-        if len(overlap) >= 2:
+        if len(overlap) >= 4:
             ek = tuple(sorted([f1, f2]))
             if ek not in seen:
                 seen.add(ek)
