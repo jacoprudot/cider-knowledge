@@ -371,7 +371,7 @@ const CHUNK_OVERLAP = 500;
 function filterTerms(query) {
   return query
     .toLowerCase()
-    .replace(/[?.,!;:'"()]+/g, "")  // strip punctuation
+    .replace(/[?.,!;:'"()\-]+/g, " ")  // strip punctuation + hyphens ("12-18" → "12 18")
     .split(/\s+/)
     .filter((t) => t.length > 1 && !STOP_WORDS.has(t));
 }
@@ -436,10 +436,13 @@ async function searchVault(query) {
 
     const contentLower = content.toLowerCase();
     const docLen = Math.max(content.length, 1000);
+    const matched = new Set();
     let contentScore = terms.reduce((s, t) => {
-      const count = contentLower.split(t).length - 1;
+      const count = Math.min(contentLower.split(t).length - 1, 3); // cap: one term flooding a doc (e.g. "perry" x25) shouldn't dominate
+      if (count > 0) matched.add(t);
       return s + (count * idf(t) * 1000) / docLen;
     }, 0);
+    contentScore += matched.size * 300; // breadth bonus: matching more distinct question terms wins
     // +50 if the exact query phrase appears in content
     if (contentLower.includes(queryLower)) contentScore += 50;
 
@@ -454,12 +457,15 @@ async function searchVault(query) {
         const chunk = content.slice(pos, pos + CHUNK_SIZE);
         // Score this chunk (IDF-weighted, normalized per 1000 chars)
         const chunkLower = chunk.toLowerCase();
+        const cmatched = new Set();
         const chunkScore = terms.reduce((s, t) => {
-          const count = chunkLower.split(t).length - 1;
+          const count = Math.min(chunkLower.split(t).length - 1, 3); // cap floods, same as file-level
+          if (count > 0) cmatched.add(t);
           return s + (count * idf(t) * 1000) / CHUNK_SIZE;
         }, 0);
-        if (chunkScore > 0) {
-          chunks.push({ text: chunk, score: chunkScore });
+        const finalChunkScore = chunkScore + cmatched.size * 300; // breadth bonus
+        if (finalChunkScore > 0) {
+          chunks.push({ text: chunk, score: finalChunkScore });
         }
         pos += CHUNK_SIZE - CHUNK_OVERLAP;
       }
