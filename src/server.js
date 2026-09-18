@@ -518,7 +518,7 @@ app.post("/api/ask", async (req, res) => {
     });
 
     const completion = await deepseek.chat.completions.create({
-      model: "deepseek-chat",
+      model: "deepseek-v4-flash",
       messages: llmMessages,
       temperature: 0.3,
       max_tokens: 1500,
