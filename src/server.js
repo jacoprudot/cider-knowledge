@@ -469,7 +469,10 @@ async function searchVault(query) {
     const key = r.file + r.content.slice(0, 50);
     if (!seen.has(key)) { seen.add(key); deduped.push(r); }
   }
-  return deduped.slice(0, 6);
+  // Top-8 cutoff: with the full textbook (59 files) added, 6 files was too
+  // tight — cross-topic questions (e.g. perry maturation) missed the file
+  // that holds the answer because dense single-topic files outranked it.
+  return deduped.slice(0, 8);
 }
 
 // ── POST /api/ask ──
