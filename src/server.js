@@ -386,82 +386,94 @@ async function searchVault(query) {
   const terms = filterTerms(query);
   if (terms.length === 0) return results;
 
-  async function walk(dir) {
+  // ── Pass 1: collect all vault files (baked + user-editable) ──
+  const docs = [];
+  async function collect(dir) {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        await walk(full);
+        await collect(full);
       } else if (entry.name.endsWith(".md") && entry.name !== "index.md") {
-        const content = await fs.readFile(full, "utf-8");
-        const title = content.match(/^#\s+(.+)/m)?.[1] || entry.name.replace(".md", "").replace(/-/g, " ");
-        const relPath = path.relative(VAULT_ROOT, full).replace(/\\/g, "/");
-
-        // Score: extreme title weight + IDF-like content scoring
-        const titleLower = title.toLowerCase();
-        const queryLower = query.toLowerCase().trim();
-        let titleScore = 0;
-
-        // Massive bonus for key term matches in title (title should dominate search ranking)
-        for (const t of terms) {
-          if (t.length < 2) continue;
-          if (titleLower.includes(t)) {
-            titleScore += 200; // +200 per key term in title
-          }
-        }
-        // +500 for exact title match (the holy grail)
-        if (titleLower === queryLower) titleScore += 500;
-        // +300 if the full query phrase appears in the title
-        if (titleLower.includes(queryLower)) titleScore += 300;
-
-        const contentLower = content.toLowerCase();
-        const docLen = Math.max(content.length, 1000);
-        let contentScore = terms.reduce((s, t) => {
-          if (t.length < 2) return s;
-          const count = contentLower.split(t).length - 1;
-          return s + (count * 1000) / docLen;
-        }, 0);
-        // +50 if the exact query phrase appears in content
-        if (contentLower.includes(queryLower)) contentScore += 50;
-
-        const totalScore = titleScore + contentScore;
-        if (totalScore <= 0) continue; // skip this file, continue to next
-
-        // For large files: chunk and return best chunks
-        if (content.length > CHUNK_SIZE + CHUNK_OVERLAP) {
-          const chunks = [];
-          let pos = 0;
-          while (pos < content.length) {
-            const chunk = content.slice(pos, pos + CHUNK_SIZE);
-            // Score this chunk (normalized per 1000 chars, same as non-chunked)
-            const chunkLower = chunk.toLowerCase();
-            const chunkScore = terms.reduce((s, t) => {
-              if (t.length < 2) return s;
-              const count = chunkLower.split(t).length - 1;
-              return s + (count * 1000) / CHUNK_SIZE;
-            }, 0);
-            if (chunkScore > 0) {
-              chunks.push({ text: chunk, score: chunkScore });
-            }
-            pos += CHUNK_SIZE - CHUNK_OVERLAP;
-          }
-          // Return best chunk per file (avoid flooding results with one doc)
-          chunks.sort((a, b) => b.score - a.score);
-          const best = chunks[0];
-          if (best) {
-            results.push({ file: relPath, title, content: best.text, score: best.score + titleScore });
-          }
-        } else {
-          results.push({ file: relPath, title, content: content, score: totalScore });
-        }
+        try {
+          const content = await fs.readFile(full, "utf-8");
+          const title = content.match(/^#\s+(.+)/m)?.[1] || entry.name.replace(".md", "").replace(/-/g, " ");
+          const relPath = path.relative(VAULT_ROOT, full).replace(/\\/g, "/");
+          docs.push({ content, title, relPath });
+        } catch {}
       }
     }
   }
+  await collect(VAULT_ROOT);
+  try { await collect(VAULT_EDITABLE); } catch {}
 
-  await walk(VAULT_ROOT);
-  // Also scan user-editable vault (overrides baked-in files)
-  try { await walk(VAULT_EDITABLE); } catch {}
-  // Deduplicate by file, keep highest-scoring chunks
+  // ── IDF weights: rare terms matter more than ubiquitous ones ──
+  // Without this, dense single-topic files (e.g. the 2.8KB perry video notes
+  // saying "perry" 30x) outrank the file that actually answers the question.
+  const N = docs.length || 1;
+  const df = {};
+  for (const t of terms) {
+    df[t] = docs.filter((d) => d.content.toLowerCase().includes(t)).length;
+  }
+  const idf = (t) => 1 + Math.log(N / Math.max(df[t] || 1, 1));
+
+  const queryLower = query.toLowerCase().trim();
+
+  // ── Pass 2: score with IDF-weighted terms ──
+  for (const { content, title, relPath } of docs) {
+    // Massive bonus for key term matches in title (title should dominate search ranking)
+    const titleLower = title.toLowerCase();
+    let titleScore = 0;
+    for (const t of terms) {
+      if (titleLower.includes(t)) {
+        titleScore += 200; // +200 per key term in title
+      }
+    }
+    // +500 for exact title match (the holy grail)
+    if (titleLower === queryLower) titleScore += 500;
+    // +300 if the full query phrase appears in the title
+    if (titleLower.includes(queryLower)) titleScore += 300;
+
+    const contentLower = content.toLowerCase();
+    const docLen = Math.max(content.length, 1000);
+    let contentScore = terms.reduce((s, t) => {
+      const count = contentLower.split(t).length - 1;
+      return s + (count * idf(t) * 1000) / docLen;
+    }, 0);
+    // +50 if the exact query phrase appears in content
+    if (contentLower.includes(queryLower)) contentScore += 50;
+
+    const totalScore = titleScore + contentScore;
+    if (totalScore <= 0) continue; // skip this file, continue to next
+
+    // For large files: chunk and return best chunks
+    if (content.length > CHUNK_SIZE + CHUNK_OVERLAP) {
+      const chunks = [];
+      let pos = 0;
+      while (pos < content.length) {
+        const chunk = content.slice(pos, pos + CHUNK_SIZE);
+        // Score this chunk (IDF-weighted, normalized per 1000 chars)
+        const chunkLower = chunk.toLowerCase();
+        const chunkScore = terms.reduce((s, t) => {
+          const count = chunkLower.split(t).length - 1;
+          return s + (count * idf(t) * 1000) / CHUNK_SIZE;
+        }, 0);
+        if (chunkScore > 0) {
+          chunks.push({ text: chunk, score: chunkScore });
+        }
+        pos += CHUNK_SIZE - CHUNK_OVERLAP;
+      }
+      // Return best chunk per file (avoid flooding results with one doc)
+      chunks.sort((a, b) => b.score - a.score);
+      const best = chunks[0];
+      if (best) {
+        results.push({ file: relPath, title, content: best.text, score: best.score + titleScore });
+      }
+    } else {
+      results.push({ file: relPath, title, content: content, score: totalScore });
+    }
+  }
+
   results.sort((a, b) => b.score - a.score);
   const seen = new Set();
   const deduped = [];
