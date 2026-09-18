@@ -8,8 +8,12 @@ from collections import defaultdict
 
 VAULT = Path("vault")
 PUBLIC = Path("public")
-TOPICS = ["fermentation", "lab-testing", "sensory-analysis", "facility-operations", "perry-production", "aroma-chemistry"]
+# foundation-textbook must be FIRST — the topic loop breaks at the first match,
+# and files like foundation-textbook/fermentation.md would otherwise be
+# misclassified as the "fermentation" topic.
+TOPICS = ["foundation-textbook", "fermentation", "lab-testing", "sensory-analysis", "facility-operations", "perry-production", "aroma-chemistry"]
 TOPIC_COLORS = {
+    "foundation-textbook": "#C08B2C",
     "fermentation": "#8B9A6D",
     "lab-testing": "#6B7B4F",
     "sensory-analysis": "#BFA98A",
