@@ -994,6 +994,7 @@ function renderWikiPage(currentPath, content) {
     </div>
     <div class="nav-section">
       <strong>Topics</strong>
+      <a href="/vault/foundation-textbook/">📕 Foundation Textbook</a>
       <a href="/vault/fermentation/">Fermentation</a>
       <a href="/vault/lab-testing/">Lab Testing</a>
       <a href="/vault/sensory-analysis/">Sensory Analysis</a>

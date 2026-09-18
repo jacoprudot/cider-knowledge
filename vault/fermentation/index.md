@@ -6,5 +6,5 @@ Fruit selection, juice composition, fermentation management, SO₂ usage, rackin
 
 ### [Downstream Processing — Filtration, Blending & Packaging](downstream-processing.md)
 
-### [pdf_Foundation textbook_excerpt pg 30-49](pdf_foundation-textbook_excerpt-pg-30-49.md)
+The Foundation textbook excerpt formerly here has been replaced by the complete book — see [Foundation Textbook](/vault/foundation-textbook/).
 

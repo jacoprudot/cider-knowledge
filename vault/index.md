@@ -4,6 +4,10 @@ Welcome to the Cider Institute's AI-powered knowledge library. This vault contai
 
 ## Topics
 
+### 📕 [Foundation Textbook](/vault/foundation-textbook/)
+The complete official textbook for the Foundation Certificate — 27 sections covering history, legal framework, orcharding, production stages, QA, sensory appreciation, and appendices.
+*Source: Peter Mitchell, Cider & Perry Production — A Foundation (2nd ed., 2021)*
+
 ### 🍏 [Fermentation](/vault/fermentation/)
 Fruit selection, harvesting, milling & pressing, juice composition, fermentation management, SO₂ usage, racking, maturation, and malolactic fermentation.
 *Source: Peter Mitchell, Foundation Textbook (2021)*
